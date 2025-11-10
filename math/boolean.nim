@@ -2,6 +2,7 @@ import std/unittest
 
 
 proc rotLeft*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uint8): T =
+    ## Uses a bit mask with a bool AND operation, cost is approx. 3 cycles to set up p
     const bitLen: uint8 =
         when sizeof(T) == 1: 8'u8
         elif sizeof(T) == 2: 16'u8
@@ -15,7 +16,7 @@ proc rotLeft*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uin
 
 
 proc rotLeftM*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uint8): T =
-    ## Safe version, where k can be bigger than max bit count of a's type, but this is slower because of the extra modulo operation
+    ## Modulo / wrapping version, where k can be bigger than max bit count of a's type, but this might be a tad slower (20-90cycles for p)
     const bitLen: uint8 =
         when sizeof(T) == 1: 8'u8
         elif sizeof(T) == 2: 16'u8
@@ -23,7 +24,7 @@ proc rotLeftM*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: ui
         elif sizeof(T) == 8: 64'u8
         else: static: doAssert false, "Unsupported integer size"
     let 
-        p: uint8 = (k mod bitLen)
+        p: uint8 = k mod bitLen
         q: uint8 = bitlen - p
     return (a shl p or a shr q)
 
