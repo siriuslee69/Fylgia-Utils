@@ -1,4 +1,6 @@
 include "io/responses"
 include "math/boolean"
 
-{.define: myFlag.}
+{.define: test.}
+
+#Compile and run this file to run all tests, no flag needed!
