@@ -10,7 +10,7 @@ They can be called with
 "nim c -d:test -r filename.nim".
 ```
 
-You can run all tests at once by compiling and running the siriusUtils.nim with the tes flag:
+You can run all tests at once by compiling and running the siriusUtils.nim with the test flag:
 
 ```bash
 nim c -d:test -r siriusUtils.nim"
