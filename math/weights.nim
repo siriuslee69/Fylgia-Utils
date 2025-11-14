@@ -27,21 +27,23 @@ proc weightMap(weights: openArray[int]): seq[(int, int)] =
     for weight in weights:
         cumulativeWeight = cumulativeWeight + weight
         index = index + 1
-        let 
+        let
             mapping = (index, cumulativeWeight)
         result.add(mapping)
 
-proc mapWeight(weightMap: seq[(int,int)], weight: int): int =
+
+proc mapValue(weightMap: seq[(int,int)], weight: int): int =
     var 
         i: int = 0
         l: int = weightMap.len()
 
-    while i < l:
+    while i < l-1: #l-1 because i+1 doesnt exist for the last mapping!
         let
             lB = weightMap[i][1]      #lower bound
             uB = weightMap[i+1][1]    #upper bound
         if weight.isBetweenUI(lB, uB):
             return weightMap[i][0]
+        i.inc()
 
 
 
@@ -53,10 +55,12 @@ when defined(test):
             const 
                 weights = [2, 3, 1, 4]
                 cumulativeWeights = [2, 5, 6, 10] #0+2 = 2, 2+3 = 5, 5+1 = 6, 6+4 = 10
-                randomNumbers = [4, 7, 8, 1, 2, 6] #should not contain 0!!! otherwise the first weight will be its value +1, so not its actual weight
+                randomValues = [4, 7, 8, 1, 2, 6] #should not contain 0!!! otherwise the first weight will be its value +1, so not its actual weight
                 testResult = [1,3,3,0,0,2]
             let
                 weightMap = weights.weightMap()
             
             for i in 0.. 3:
                 check( weightMap[i][1] == cumulativeWeights[i] )
+            for i in 0..5:
+                check ( testResult[i] == weightMap.mapValue(randomValues[i]) )
