@@ -3,6 +3,7 @@ import std/unittest
 
 proc rotLeft*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uint8): T =
     ## Uses a bit mask with a bool AND operation, cost is approx. 3 cycles to set up p
+    # When statements are evaluated at compile time (during the creation of the exectubale, not after. Same goes for const definitions)
     const bitLen: uint8 =
         when sizeof(T) == 1: 8'u8
         elif sizeof(T) == 2: 16'u8
@@ -45,7 +46,6 @@ when defined(test):
             check t2.rotLeft(9+16) != 0'u16             
             check t2.rotLeftM(9) == t2.rotLeftM(9+16)
             check t2.rotLeft(255) == t2.rotleft(255'u8 and 0b0000_1111)
-
 
             const t3: uint32 = 2344321'u32
             check t3.rotLeft(16) == t3.rotLeftM(16)     
