@@ -20,7 +20,8 @@ proc isBetween*(x,a,b: int): bool =
     return (a < x) and (x < b) 
 
 proc weightMap*(weights: openArray[int]): WeightMap =
-    ##Generates a weightMap (sequence of tuples) with each tuple holding the higher bound of the indexvalue it should be mapped to
+    ##Generates a weightMap (sequence of ints) with each tuple holding the higher bound of the indexvalue it should be mapped to
+    # Cumulative is just a different word for "sum" or "summed up" (= addition / +)
     var 
         cumulativeWeight: int = 0
         index: int = 0
