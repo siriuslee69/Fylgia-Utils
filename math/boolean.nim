@@ -1,6 +1,6 @@
 proc rotLeft*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uint8): T =
     ## Uses a bit mask with a bool AND operation, cost is approx. 3 cycles to set up p
-    # When statements are evaluated at compile time (during the creation of the exectubale, not after. Same goes for const definitions)
+    # when-statements are evaluated at compile time (during the creation of the exectubale, not after. Same goes for const definitions)
     const bitLen: uint8 =
         when sizeof(T) == 1: 8'u8
         elif sizeof(T) == 2: 16'u8
