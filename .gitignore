@@ -10,6 +10,10 @@ build/
 # Extensionless binaries emitted next to sources
 math/genetic
 math/weights
+math/weights
+io/responses
+streams/write
+strutils/words
 nimble.develop
 nimble.paths
 nimbledeps
