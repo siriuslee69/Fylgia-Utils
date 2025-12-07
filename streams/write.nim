@@ -1,6 +1,4 @@
-import std/unittest
-
-proc toByteSeq(x: uint64): seq[uint8] =
+proc toByteSeq*(x: uint64): seq[uint8] =
     if x < 255'u64:
         result.add( cast[uint8](x) )
     elif x < 65535'u64: #max uint16 size; also: multiplications are done at compile time (wrote them for better readability)
@@ -17,7 +15,3 @@ proc toByteSeq(x: uint64): seq[uint8] =
         result.add( cast[uint8](x shr 8*5))
         result.add( cast[uint8](x shr 8*6))
         result.add( cast[uint8](x shr 8*7))
-
-echo $toByteSeq(23'u64)
-echo $toByteSeq(235135531'u64)
-

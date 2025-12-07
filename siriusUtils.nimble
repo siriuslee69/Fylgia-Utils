@@ -11,8 +11,17 @@ srcDir        = "."
 
 requires "nim >= 2.2.4"
 
-task test, "Run tests":
-  exec "nim c -d:test -r siriusUtils.nim"
+import os, std/strutils
 
-task lint, "Lint code":
-  exec "nimpretty --backup:off src"
+task debug, "Run tests with messages":
+  exec "nim c -d:test -d:debug -r siriusUtils.nim"
+
+task test, "Run tests":
+  var paths: seq[string]= @[]
+  for y in walkDir("tests", true, true, true):
+      if y[1].rfind(".nim") != -1:
+        paths.add( y[1] )
+        echo $paths
+  for file in paths:
+    exec "nim c -d:test -r tests/" & file
+  
