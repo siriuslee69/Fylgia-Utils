@@ -1,5 +1,3 @@
-#Compile and run with "nim c -d:test test_responses.nim" 
-#or with "nim c -d:test -d:debug test_responses.nim" for 
 when defined(test):
     
     import std/unittest, ../debugging/checks, ../io/responses
