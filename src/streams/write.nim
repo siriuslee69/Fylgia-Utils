@@ -15,3 +15,14 @@ proc toByteSeq*(x: uint64): seq[uint8] =
         result.add( cast[uint8](x shr 8*5))
         result.add( cast[uint8](x shr 8*6))
         result.add( cast[uint8](x shr 8*7))
+
+
+when defined(test):
+    
+    import std/unittest, ../debugging/checks
+
+    suite "io":
+        test "Write":
+            echo $toByteSeq(23'u64)
+            echo $toByteSeq(235135531'u64)
+            check(true == true)

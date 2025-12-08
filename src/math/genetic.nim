@@ -18,3 +18,18 @@ const
         ( "or", 1, proc(x,y: int): int = x or y),
         ( "not", 1, proc(x,y: int): int = not x)
         ]
+
+
+
+when defined(test):
+
+    import std/unittest, ../debugging/checks
+
+    suite "Genetic":
+        test "op template":
+            var 
+                res: int
+            for op in ops:
+                res = op.p(1,3)
+                echo $res
+

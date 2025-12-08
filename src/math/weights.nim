@@ -45,3 +45,33 @@ proc mapValue*(weightMap: WeightMap, x: int): int =
             return i
         i.inc()
 
+
+when defined(test):
+    
+    import std/unittest, ../debugging/checks
+
+    suite "Weights":
+        test "weightMap":
+            const 
+                weights = [2, 3, 1, 4]
+                cumulativeWeights = [0, 2, 5, 6, 10] # 0 <- first value needs to be 0 for loop-index reasons.  0+2 = 2, 2+3 = 5, 5+1 = 6, 6+4 = 10
+                randomValues = [4, 7, 8, 1, 2, 6] 
+                testResult = [1,3,3,0,0,2]
+            let
+                weightMap = weights.weightMap()          
+            echo $cumulativeWeights
+            echo $weightMap
+            echo $testResult
+            for i in 0.. 3:
+                let 
+                    a = weightMap[i]
+                    b = cumulativeWeights[i]
+                echoCheck(a, b) #does nothing, unless debug flag is defined
+                check( a == b )
+    
+            for i in 0.. 5:
+                let
+                    a = testResult[i]
+                    b = weightMap.mapValue(randomValues[i]) 
+                echoCheck(a, b)
+                check (a == b)

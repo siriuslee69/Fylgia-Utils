@@ -26,7 +26,34 @@ proc rotLeftM*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: ui
         q: uint8 = bitlen - p
     return (a shl p or a shr q)
 
+when defined(test):
 
-#Compile and run the tests with "nim c -d:test -r boolean.nim" or run all tests via "nimble test"
+    import std/unittest, ../debugging/checks
+    
+    suite "Boolean":
+        test "rotLeft":
+            const t1: uint8 = 242
+            check t1.rotLeft(4) == 47'u8                
+            check t1.rotLeft(4) == t1.rotLeftM(4)     
+            check t1.rotLeft(12) != 0'u8             
+            check t1.rotLeftM(4) == t1.rotLeftM(12)   # 47 == 47
+            check t1.rotLeft(255) == t1.rotleft(255'u8 and 0b0000_0111)
 
+            const t2: uint16 = 5423'u16
+            check t2.rotLeft(9) == t2.rotLeftM(9)     
+            check t2.rotLeft(9+16) != 0'u16             
+            check t2.rotLeftM(9) == t2.rotLeftM(9+16)
+            check t2.rotLeft(255) == t2.rotleft(255'u8 and 0b0000_1111)
+
+            const t3: uint32 = 2344321'u32
+            check t3.rotLeft(16) == t3.rotLeftM(16)     
+            check t3.rotLeft(16+32) != 0'u32         
+            check t3.rotLeftM(16) == t3.rotLeftM(16+32)
+            check t3.rotLeft(255) == t3.rotleft(255'u8 and 0b0001_1111)
+
+            const t4: uint64 = 7221246780923'u64
+            check t4.rotLeft(16) == t4.rotLeftM(16)     
+            check t4.rotLeft(16+64) != 0'u64             
+            check t4.rotLeftM(16) == t4.rotLeftM(16+64)
+            check t4.rotLeft(255) == t4.rotleft(255'u8 and 0b0011_1111)
 

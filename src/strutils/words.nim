@@ -1,7 +1,12 @@
+import strutils
+
+template toWords*(str: string): seq[string] =
+    str.splitWhitespace()
+
 
 when defined(test):
     
-    import std/unittest, ../debugging/checks, ../strutils/words
+    import std/unittest, ../debugging/checks
 
     suite "strutils":
         test "toWords":
