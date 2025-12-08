@@ -4,7 +4,7 @@ proc makeEven(x: SomeInteger): SomeInteger =
 
 proc echoCheck*[T](a,b: T): void =
     ## Echos the two input values and "asserts" them. 
-    ## Prints a "✔" if they are equally, a "✘" otherwise
+    ## Prints a "✔" if they are equal, a "✘" otherwise
     ## The actual value of a test is b, the wanted test result is a
     when defined(debug): 
         echo "Wanted value: " & $a
