@@ -1,4 +1,4 @@
-proc rotLeft*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uint8): T =
+proc rotLeft*[T: SomeInteger](a: T, k: uint8): T =
     ## Uses a bit mask with a bool AND operation, cost is approx. 3 cycles to set up p
     # when-statements are evaluated at compile time (during the creation of the exectubale, not after. Same goes for const definitions)
     const bitLen: uint8 =
@@ -13,7 +13,7 @@ proc rotLeft*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uin
     return (a shl p or a shr q)
 
 
-proc rotLeftM*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](a: T, k: uint8): T =
+proc rotLeftM*[T: SomeInteger](a: T, k: uint8): T =
     ## Modulo / wrapping version, where k can be bigger than max bit count of a's type, but this might be a tad slower (20-90cycles for p)
     const bitLen: uint8 =
         when sizeof(T) == 1: 8'u8

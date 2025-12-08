@@ -1,5 +1,6 @@
-proc makeEven(x: SomeInteger): SomeInteger =
-    ## Increment to the next bigger integer if it's not even (will overflow the max value of an int so 255+1->0)
+proc toEven(x: SomeInteger): SomeInteger =
+    ## Increment to the next bigger integer if it's not even 
+    ## (will overflow the max value of an int. E.g.: max uint8 = 255 +1 -> 0)
     return x + (x and 1)
 
 proc echoCheck*[T](a,b: T): void =
