@@ -3,8 +3,9 @@ proc makeEven(x: SomeInteger): SomeInteger =
     return x + (x and 1)
 
 proc echoCheck*[T](a,b: T): void =
-    ## Echos the two input values and checks them also
-    ## The actual value should be b, the wanted test result should be a
+    ## Echos the two input values and "asserts" them. 
+    ## Prints a "✔" if they are equally, a "✘" otherwise
+    ## The actual value of a test is b, the wanted test result is a
     when defined(debug): 
         echo "Wanted value: " & $a
         echo "Actual value: " & $b
