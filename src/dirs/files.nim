@@ -15,5 +15,5 @@ proc getAllFilesWithEnding*(x, y: string): seq[string] =
     for i, path in paths:
         paths[i] = path.replace("\\", "/").replace(".nim", "")
     result = paths
-#    echo paths
+    echo paths
 #echo $"".getAllFilesWithEnding(".nim")

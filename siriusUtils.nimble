@@ -25,11 +25,18 @@ import src/dirs/files
 task test, "Run tests":
   let userParam = paramStr(paramCount()) #Grabs the parameter at the last position - in this case, the provided file name
   if userParam.len() == 0:
-    echo "Please provide the name of the file you'd like to test."
+    echo "Please provide the name of the file you'd like to test. If you provide \"all\", then all files will be tested."
     return
+  if (userParam == "all") or (userParam == "test"):
+    let 
+      shortenedFileName = userParam.replace(".nim", "") #if the filename has an ending, remove it. The paths are all saved without one too. And need to be, for searching
+      paths = "src".getAllFilesWithEnding(".nim")
+    for file in paths:
+        exec "nim c -d:test -d:release -r src/" & file & ".nim"  
   else:
-    let shortenedFileName = userParam.replace(".nim", "") #if the filename has an ending, remove it. The paths are all saved without one too. And need to be, for searching
-    var paths = "src".getAllFilesWithEnding(".nim")
+    let 
+      shortenedFileName = userParam.replace(".nim", "") #if the filename has an ending, remove it. The paths are all saved without one too. And need to be, for searching
+      paths = "src".getAllFilesWithEnding(".nim")
     for file in paths:
       if file.rfind(shortenedFileName) != -1:
         exec "nim c -d:test -r src/" & file & ".nim"

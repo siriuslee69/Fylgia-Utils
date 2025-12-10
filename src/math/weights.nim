@@ -36,11 +36,11 @@ proc mapValue*(weightMap: WeightMap, x: int): int =
     var 
         i: int = 0
         l: int = weightMap.len()
-
+        lB: int
+        uB: int
     while i < l-1: #l-1 because i+1 doesnt exist for the last mapping!
-        let
-            lB = weightMap[i]   #lower bound
-            uB = weightMap[i+1]   #upper bound
+        lB = weightMap[i]   #lower bound
+        uB = weightMap[i+1]   #upper bound
         if x.isBetweenUI(lB, uB):
             return i
         i.inc()
