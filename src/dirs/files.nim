@@ -2,6 +2,7 @@ import os, strutils
 
 proc getAllFilesWithEnding*(x, y: string): seq[string] =
     ## Gets all finds inside all directories with a specific ending
+    ## This needs some fixing, lol, currently only works for nim files, doesnt allow any search terms
     var paths: seq[string]= @[]
     let 
         cDir = getCurrentDir()
