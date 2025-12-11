@@ -1,19 +1,19 @@
 type 
     WeightMap* = seq[int]
 
-proc isBetweenUI*(x,a,b: int): bool =
+proc isBetweenUI*(x,a,b: SomeNumber): bool =
     ##Checks if a number is between two other numbers (upper bound/right bound included)
     return (a < x) and (x <= b) 
 
-proc isBetweenLI*(x,a,b: int): bool =
+proc isBetweenLI*(x,a,b: SomeNumber): bool =
     ##Checks if a number is between two other numbers (lower bound/left bound included)
     return (a <= x) and (x < b) 
 
-proc isBetweenLIUI*(x,a,b: int): bool =
+proc isBetweenLIUI*(x,a,b: SomeNumber): bool =
     ##Checks if a number is between two other numbers (both bounds included)
     return (a <= x) and (x <= b) 
 
-proc isBetween*(x,a,b: int): bool =
+proc isBetween*(x,a,b: SomeNumber): bool =
     ##Checks if a number is between two other numbers (both numbers excluded)
     return (a < x) and (x < b) 
 
