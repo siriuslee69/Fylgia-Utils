@@ -44,7 +44,7 @@ proc `or`(X,Y: Solution): Solution =
         result.add( X[i] or Y[i] )
         i.inc()
         
-# ---- Efficient functions for generating bytes with certain bit probabilities ---- #
+# ---- Efficient functions for generating bytes with certain bit probabilities ---- 
 
 
 # p = probability * 256 (0..256)
