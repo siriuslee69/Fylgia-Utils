@@ -1,6 +1,27 @@
 import std/random, std/math, strutils
+template multipleOf8(bits: static int): static int =
+    (bits + 7) shr 3 #rounds up to multiple of 8
+
+template multipleOf64(bits: static int): static int =
+    (bits + 63) shr 6
+
 type 
-    Solution = seq[uint64]
+    Solution[Bits: static uint64] = 
+        const 
+            a = multipleOf8
+            b = multipleOf64
+        case a of 
+        8:
+            uint8
+        16: 
+            uint16
+        32: 
+            uint32
+        64: 
+            uint64
+        else:
+            array[b, uint64]
+
     Individual = object
         bestSolution: Solution #personal best 
         lastSolution: Solution
@@ -50,35 +71,36 @@ proc `or`(X,Y: Solution): Solution =
 # p = probability * 256 (0..256)
 # p=0 -> always 0, p=256 -> always 1
 proc bitProbability8(p: float64): uint8 =
+    ## Returns an uint8 with each bit having the probability p of being 1
     if p >= 1.0:
         return 0b1111_1111
-    result = 0
-    let
-        x = rand(uint64)   # 1 call
-    echo "hey"
-    let
-        t:uint8 = (255 * p).round().uint8()
-    echo $t
-    for i in 0..7:
-        let u = cast[uint8](x shr (i*8))
-        if u < t:      # threshold compare
-            result = result or (1'u8 shl i)
+    else:
+        var 
+            x: uint64 = rand(uint64) # 1 call for an uint64 rand will yield one uint8 number
+            t: uint8 = (255 * p).round().uint8() #threshold which we compare x against
+            u: uint8 
+        for i in 0..7:
+            u = cast[uint8](x shr (i*8))
+            if u < t:      # threshold comparison - adds 1 bit to the result if u was within the threshold, else keeps 0
+                result = result or (1'u8 shl i) # add the bit
 
 proc bitProbability64(p: float64): uint64 =
-    for i in 0.. 7:
-        let
-            rand: uint64 = cast[uint64](bitProbability8(p))
-        echo $rand & "here is round number: " & $i
+    ## Returns an uint8 with each bit having the probability p of being 1
+    var 
+        rand: uint64
+    for i in 0.. 7: #cast and shift in 8 uint8 into an uint64 
+        rand = cast[uint64](bitProbability8(p)) 
         result = result or (rand shl (i*8))
 
-proc bitProbabilitySolution(solutionLenInBits: int64, p: float64): Solution =
+proc bitProbabilitySolution(sol: Solution, p: float64): Solution =
+    ## solBitLen = bit length of the solution
     ## This will always do 8 calls to random() at least, to fill an entire uint64, so there is a bit of overhead. 
     ## Unless you provide solutions with exactly a multiple of 64 entries (bits),
     ## it might make more sense to create a new function to make this more efficient
     let 
-        l = (solutionLenInBits/64).ceil().int64()
+        l = (solBitLen/8).ceil().int64()
     echo $l
-    echo $(solutionLenInBits/64)
+    echo $(solBitLen/8)
     for i in 0.. (l-1):
         echo "Now doing round: " & $i 
         result.add(bitProbability64(p))
@@ -112,5 +134,3 @@ proc update(s: var Swarm): void =
             w = a2 and p or (not a2) and g
             v = a1 and x or (not a1) and w
             u = b and (not x) or (not b) and v
-
-
