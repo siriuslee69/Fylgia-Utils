@@ -1,4 +1,4 @@
-import std/random, std/math, strutils, unittest
+import std/random, std/math, strutils
 
 randomize()
 
@@ -163,6 +163,7 @@ proc update(s: var Swarm): void =
 
 
 when defined(test):
+    import unittest
     suite "ParticleSwarm":
         test "Some tests":
             echo "hey"
