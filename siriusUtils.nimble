@@ -1,3 +1,5 @@
+import std/[os, strutils]
+
 # Package
 
 version       = "0.1.0"
@@ -9,9 +11,16 @@ srcDir        = "."
 
 # Dependencies
 
-requires "nim >= 2.2.4"
+requires "nim >= 1.6.0"
 
-import src/dirs/files
+when not defined(nimscript):
+  import src/dirs/files
+else:
+  proc getAllFilesWithEnding*(sDir: string, y: string): seq[string] =
+    result = @[]
+    for file in walkDirRec(sDir, relative = true):
+      if file.endsWith(y):
+        result.add(file.replace("\\", "/").replace(y, ""))
 
 # This is such bullshit honestly, even ChatGPT couldn't solve this. 
 # To get the last provided user argument from "nimble test someFile" (in this case 'someFile')
@@ -52,3 +61,44 @@ task debug, "Run tests":
     for file in paths:
       if file.rfind(shortenedFileName) != -1:
         exec "nim c -d:test -d:debug -r src/" & file & ".nim"
+
+task autopush, "Add, commit, and push with message from progress.md":
+  let path = "progress.md"
+  var msg = ""
+  if fileExists(path):
+    let content = readFile(path)
+    for line in content.splitLines:
+      if line.startsWith("Commit Message:"):
+        msg = line["Commit Message:".len .. ^1].strip()
+        break
+  if msg.len == 0:
+    msg = "No specific commit message given."
+  exec "git add -A ."
+  exec "git commit -m \" " & msg & "\""
+  exec "git push"
+task find, "Use local clones for submodules in parent folder":
+  let modulesPath = ".gitmodules"
+  if not fileExists(modulesPath):
+    echo "No .gitmodules found."
+  else:
+    let root = parentDir(getCurrentDir())
+    var current = ""
+    for line in readFile(modulesPath).splitLines:
+      let s = line.strip()
+      if s.startsWith("[submodule"):
+        let start = s.find('"')
+        let stop = s.rfind('"')
+        if start >= 0 and stop > start:
+          current = s[start + 1 .. stop - 1]
+      elif current.len > 0 and s.startsWith("path"):
+        let parts = s.split("=", maxsplit = 1)
+        if parts.len == 2:
+          let subPath = parts[1].strip()
+          let tail = splitPath(subPath).tail
+          let localDir = joinPath(root, tail)
+          if dirExists(localDir):
+            let localUrl = localDir.replace('\\', '/')
+            exec "git config -f .gitmodules submodule." & current & ".url " & localUrl
+            exec "git config submodule." & current & ".url " & localUrl
+    exec "git submodule sync --recursive"
+
