@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: rename module to fylgia_utils and fix imports
+Commit Message: generalize text profile limits
 
 Features (Planned):
 - Add more reusable validation presets for additional app types.
@@ -8,7 +8,7 @@ Features (Planned):
 
 Features (Done):
 - Added level1 helpers for bytes/base64, time, ids, and text validation.
-- Added level2 text validation profiles for chat-like apps.
+- Added level2 generic limit helpers for strings and ranges.
 - Cleaned up dirs/files to remove debug side effects.
 - Added JSON helpers for string/byte payload conversion.
 
