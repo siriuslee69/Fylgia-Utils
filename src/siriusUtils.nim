@@ -1,9 +1,7 @@
 # ==================================================
-# | Fylgia Utils Root Module                            |
+# | Fylgia Utils Root Module                      |
 # |------------------------------------------------|
-# | Public exports for backend helpers.            |
+# | Aggregates utility modules (no app backend). |
 # ==================================================
 
-import siriusUtils/backend/core
-
-export core
+const SiriusUtilsVersion* = "0.1.0"

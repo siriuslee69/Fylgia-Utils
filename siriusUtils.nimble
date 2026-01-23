@@ -102,15 +102,4 @@ task find, "Use local clones for submodules in parent folder":
     exec "git submodule sync --recursive"
 
 
-task buildDesktop, "Build the GTK4 desktop app":
-  exec "nim c -d:release src/siriusUtils/frontend/desktop/app.nim"
-
-task runDesktop, "Run the GTK4 desktop app":
-  exec "nim c -r src/siriusUtils/frontend/desktop/app.nim"
-
-task runCli, "Run the CLI entrypoint":
-  exec "nim c -r src/siriusUtils/frontend/cli/app_cli.nim"
-
-task runTui, "Run the TUI entrypoint":
-  exec "nim c -r src/siriusUtils/frontend/tui/app_tui.nim"
 

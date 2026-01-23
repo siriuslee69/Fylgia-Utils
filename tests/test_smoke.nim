@@ -4,10 +4,9 @@
 # | Minimal compile/runtime checks.       |
 # =========================================
 
-import std/[unittest, strutils]
-import ../src/siriusUtils/backend/core
+import std/unittest
+import ../src/siriusUtils
 
-suite "Fylgia Utils scaffold":
-  test "backend description":
-    let c = initBackend("Fylgia Utils")
-    check describeBackend(c).contains("Fylgia Utils")
+suite "Fylgia Utils":
+  test "root module compiles":
+    check SiriusUtilsVersion.len > 0
