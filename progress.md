@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: generalize text profile limits
+Commit Message: add generic limit defaults
 
 Features (Planned):
 - Add more reusable validation presets for additional app types.
