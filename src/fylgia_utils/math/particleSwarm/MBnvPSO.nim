@@ -1,236 +1,188 @@
-import std/random, std/math, strutils
+import std/[random, strutils]
 
 randomize()
 
-template multipleOf8(bits: static uint64): static uint64 =
-    ##rounds up to multiple of 8
-    (bits + 7) shr 3 
-
-template multipleOf64(bits: static uint64): static uint64 =
-    ##rounds up to multiple of 64
-    (bits + 63) shr 6 
-
-
 type 
-    S8 = uint8
-    S16 = uint16
-    S32 = uint32
-    S64 = uint64
-    SS = seq[uint64]
-    SomeSolution = S8|S16|S32|S64|SS
+    S8* = uint8
+    S16* = uint16
+    S32* = uint32
+    S64* = uint64
+    SS* = seq[uint64]
+    SomeSolution* = S8 | S16 | S32 | S64 | SS
 
-    Individual[T: S8|S16|S32|S64|SS] = object
-        bestSolution: T  #personal best 
-        lastSolution: T
-        currentSolution: T
+    Individual*[T: SomeSolution] = object
+        bestSolution*: T
+        lastSolution*: T
+        currentSolution*: T
 
-    Swarm[T: S8|S16|S32|S64|SS] = object
-        individuals: seq[Individual[T]]
-        bestSolutions: seq[T] #global best, has to be ordered somewhat 
-        velocity: T
-        alphas: array[3, float64]
-        A: array[3, T] 
+    Swarm*[T: SomeSolution] = object
+        individuals*: seq[Individual[T]]
+        bestSolutions*: seq[T]
+        velocity*: T
+        alphas*: array[3, float64]
+        masks*: array[3, T]
 
+proc clampProbability(value: float64): float64 =
+    if value < 0.0:
+        return 0.0
+    if value > 1.0:
+        return 1.0
+    result = value
 
-# ---- Boolean Funcs for the SS type / seq[uint8] ---- #
+proc ensureSameLength(X, Y: SS) =
+    if X.len() != Y.len():
+        raise newException(ValueError, "SS operands must have the same length")
 
 proc `not`(X: SS): SS =
-    var 
-        i = 0
-        l = X.len()
-    while i < l:
-        result.add(not X[i])
-        i.inc()
-    
+    result = newSeq[uint64](X.len())
+    for i, value in X:
+        result[i] = not value
+
 proc `and`(X, Y: SS): SS =
-    echo "Trying to AND SSs failed. SSs/seq[uint8]  must be the same length!"
-    var 
-        i = 0
-        l = X.len()
-    while i < l:
-        result.add( X[i] and Y[i] )
-        i.inc()
-        
-proc `or`(X,Y: SS): SS =
-    if X.len() != Y.len():
-        echo "Trying to OR SSs failed. SSs/seq[uint8] must be the same length!"
-        return
-    var 
-        i = 0
-        l = X.len()
-    while i < l:
-        result.add( X[i] or Y[i] )
-        i.inc()
-      
-# ---- Efficient functions for generating bytes with certain bit probabilities ---- 
+    ensureSameLength(X, Y)
+    result = newSeq[uint64](X.len())
+    for i in 0 ..< X.len():
+        result[i] = X[i] and Y[i]
 
+proc `or`(X, Y: SS): SS =
+    ensureSameLength(X, Y)
+    result = newSeq[uint64](X.len())
+    for i in 0 ..< X.len():
+        result[i] = X[i] or Y[i]
 
-template SSLen(sol: SomeSolution): uint64 =
-    case typeOf(sol)
-    of uint8:   
-        8
-    of uint16:
-        16
-    of uint32:
-        32
-    of uint64:
-        64
-    else:
-        sol.len()
+proc randomMask[T: SomeInteger](p: float64): T =
+    let probability = clampProbability(p)
+    if probability <= 0.0:
+        return default(T)
+    if probability >= 1.0:
+        return not default(T)
+    for bit in 0 ..< sizeof(T) * 8:
+        if rand(1.0) < probability:
+            result = result or (1.T shl bit)
 
-proc randomS8(p: float64): uint8 =
-    ## Returns an uint8 with each bit having the probability p of being 1
-    if p >= 1.0:
-        return 0b1111_1111
-    else:
-        var 
-            x: uint64 = rand(uint64) # 1 call for an uint64 rand will yield one uint8 number
-            t: uint8 = (255 * p).round().uint8() #threshold which we compare x against
-            u: uint8 
-        for i in 0..7:
-            u = cast[uint8](x shr (i*8))
-            if u < t:      # threshold comparison - adds 1 bit to the result if u was within the threshold, else keeps 0
-                result = result or (1'u8 shl i) # add the bit
+proc randomS8*(p: float64): uint8 =
+    randomMask[uint8](p)
 
-proc randomS16(p: float64): uint16 =
-    ## Returns an uint16 with each bit having the probability p of being 1
-    var 
-        rand8bit: uint16
-    for i in 0.. 1: #cast and shift in 2 uint8 into an uint64 
-        rand8bit = cast[uint16](randomS8(p)) 
-        result = result or (rand8bit shl (i*8))
+proc randomS16*(p: float64): uint16 =
+    randomMask[uint16](p)
 
-proc randomS32(p: float64): uint32 =
-    ## Returns an uint32 with each bit having the probability p of being 1
-    var 
-        rand8bit: uint32
-    for i in 0.. 3: #cast and shift in 4 uint8 into an uint64 
-        rand8bit = cast[uint32](randomS8(p)) 
-        result = result or (rand8bit shl (i*8))
+proc randomS32*(p: float64): uint32 =
+    randomMask[uint32](p)
 
-proc randomS64(p: float64): uint64 =
-    ## Returns an uint64 with each bit having the probability p of being 1
-    var 
-        rand8bit: uint64
-    for i in 0.. 7: #cast and shift in 8 uint8 into an uint64 
-        rand8bit = cast[uint64](randomS8(p)) 
-        result = result or (rand8bit shl (i*8))
+proc randomS64*(p: float64): uint64 =
+    randomMask[uint64](p)
 
-proc randomSS(sol: SomeSolution, p: float64): SS =
-    ## solBitLen = bit length of the SS
-    ## This will always do 8 calls to random() at least, to fill an entire uint64, so there is a bit of overhead. 
-    ## Unless you provide SSs with exactly a multiple of 64 entries (bits),
-    ## it might make more sense to create a new function to make this more efficient
-    let l = (SSLen(sol)/8).ceil().int64()
-    case typeOf(sol)
-    of uint8:
+proc randomSS*(wordCount: Natural, p: float64): SS =
+    result = newSeq[uint64](wordCount)
+    for i in 0 ..< wordCount:
+        result[i] = randomS64(p)
+
+proc randomLike[T: SomeSolution](sample: T, p: float64): T =
+    when T is S8:
         result = randomS8(p)
-    of uint16:
+    elif T is S16:
         result = randomS16(p)
-    of uint32:
+    elif T is S32:
         result = randomS32(p)
-    of uint64:
+    elif T is S64:
         result = randomS64(p)
-    else:
-        for u64 in sol:
-            result.add( randomS64(p) )
+    elif T is SS:
+        result = randomSS(sample.len(), p)
 
-proc createSwarm[T: S8|S16|S32|S64|SS](): Swarm[T] =
-    var 
-        swarm: Swarm[T]
-    swarm.individuals = @[]
-    swarm.bestSolutions = @[]
-    swarm.alphas = [0.5, 0.5, 0.5] 
-    swarm.velocity = 0.T()
-    swarm.A =  [0.T(), 0.T(), 0.T()]
-    result = swarm
-    return result
+proc createSwarm*[T: SomeSolution](): Swarm[T] =
+    result.individuals = @[]
+    result.bestSolutions = @[]
+    result.alphas = [0.5, 0.5, 0.5]
+    result.velocity = default(T)
+    result.masks = [default(T), default(T), default(T)]
 
-proc init(s: var Swarm, beta: float64, alpha1: float64 ): void =
-    ## alpha0: Chance that a bit is taken from the NEGATION of the last personal SS of the individual
-    ## alpha1: Chance that a bit is taken from the last SS / particle stays at current position
-    ## alpha2: Chance that a bit is taken from the personal best vs being taken from the global best instead
-    ## Chances don't translate 1:1 since the actual update function is nested
-    s.alphas[0] = beta
-    s.alphas[1] = alpha1 
-    s.alphas[2] = 1 - alpha1
+proc init*[T: SomeSolution](s: var Swarm[T], beta: float64, alpha1: float64) =
+    ## alpha0: Chance that a bit is taken from the negation of the current solution.
+    ## alpha1: Chance that a bit is taken from the current solution instead of w.
+    ## alpha2: Chance that w takes a bit from the personal best instead of the global best.
+    let clampedBeta = clampProbability(beta)
+    let clampedAlpha1 = clampProbability(alpha1)
+    s.alphas[0] = clampedBeta
+    s.alphas[1] = clampedAlpha1
+    s.alphas[2] = 1.0 - clampedAlpha1
 
-proc add[T: SomeSolution](swarm: var Swarm[T], ind: Individual[T]): void =
+proc add*[T: SomeSolution](swarm: var Swarm[T], ind: Individual[T]) =
     swarm.individuals.add(ind)
 
-proc addIndividual[T: SomeSolution](swarm: var Swarm[T]): void =
-    swarm.individuals.add(Individual[T](bestSolution: 4.T(), currentSolution: 0.T(), lastSolution: 0.T()))
+proc addIndividual*[T: SomeSolution](swarm: var Swarm[T], initial: T = default(T)) =
+    swarm.individuals.add(Individual[T](
+        bestSolution: initial,
+        currentSolution: initial,
+        lastSolution: initial,
+    ))
 
-proc add[T: SomeSolution](swarm: var Swarm[T], best: T): void =
+proc addGlobalBest*[T: SomeSolution](swarm: var Swarm[T], best: T) =
     swarm.bestSolutions.add(best)
 
-proc update(s: var Swarm): void =
-    let
-        b = s.A[0]
-        a1 = s.A[1]
-        a2 = s.A[2]
-    for individual in s.individuals:
+proc add*[T: SomeSolution](swarm: var Swarm[T], best: T) =
+    swarm.addGlobalBest(best)
+
+proc update*[T: SomeSolution](s: var Swarm[T]) =
+    if s.bestSolutions.len() == 0:
+        return
+
+    for i in 0 ..< s.individuals.len():
         let
             g = s.bestSolutions[0]
-            p = individual.bestSolutions
-            x = individual.bestSolutions
+            p = s.individuals[i].bestSolution
+            x = s.individuals[i].currentSolution
+            betaMask = randomLike(x, s.alphas[0])
+            alpha1Mask = randomLike(x, s.alphas[1])
+            alpha2Mask = randomLike(x, s.alphas[2])
+            w = (alpha2Mask and p) or ((not alpha2Mask) and g)
+            v = (alpha1Mask and x) or ((not alpha1Mask) and w)
+            u = (betaMask and (not x)) or ((not betaMask) and v)
 
-            w = a2 and p or (not a2) and g
-            v = a1 and x or (not a1) and w
-            u = b and (not x) or (not b) and v
+        s.masks = [betaMask, alpha1Mask, alpha2Mask]
+        s.individuals[i].lastSolution = x
+        s.individuals[i].currentSolution = u
+        s.velocity = v
 
-echo $8.toBin(8)
-
-proc `$`(sol: SomeSolution): string =
+proc `$`*[T: SomeSolution](sol: T): string =
     result = ""
-    when sol is S8:
-        return toBin(sol.BiggestInt(), 8)
-    elif sol is S16:
-        return toBin(sol.BiggestInt(), 16)
-    elif sol is S32:
-        return toBin(sol.BiggestInt(), 32)
-    elif sol is S64:
-        return toBin(sol.BiggestInt(), 64)
-    elif sol is SS:
-        var 
-            i = 0
-            l = sol.len()
-        while i < l:
-            result.add( toBin(sol[i].BiggestInt(), 64) )
-            i.inc()
+    when T is S8:
+        return toBin(cast[BiggestInt](sol), 8)
+    elif T is S16:
+        return toBin(cast[BiggestInt](sol), 16)
+    elif T is S32:
+        return toBin(cast[BiggestInt](sol), 32)
+    elif T is S64:
+        return toBin(cast[BiggestInt](sol), 64)
+    elif T is SS:
+        for value in sol:
+            result.add(toBin(cast[BiggestInt](value), 64))
 
-
-proc `$`[T: SomeSolution](swarm: Swarm[T]): string =
-    var 
-        i = 0
-        l = swarm.individuals.len()
-    while i < l:
-        let
-            individual = swarm.individuals[i]
-        let msg = 
-            "Individual " & $i & " : " & 
-            $individual.currentSolution & ", " & 
-            $individual.lastSolution & ", " & 
-            $individual.bestSolution & " \n "
-        result.add(msg)
-        i.inc()
+proc `$`*[T: SomeSolution](swarm: Swarm[T]): string =
+    for i, individual in swarm.individuals:
+        result.add(
+            "Individual " & $i & " : " &
+            $individual.currentSolution & ", " &
+            $individual.lastSolution & ", " &
+            $individual.bestSolution & "\n"
+        )
 
 when defined(test):
-    import unittest
+    import std/unittest
+
     suite "ParticleSwarm":
-        test "Some tests":
-            echo "hey"
-            echo $randomS8(0.4)
-            echo $randomS16(0.4)
-            echo $randomS32(0.4)
-            echo $randomS64(0.4)
+        test "random masks respect extreme probabilities":
+            check randomS8(0.0) == 0'u8
+            check randomS8(1.0) == 0xFF'u8
 
-            var 
-                swarm = createSwarm[S16]()
-            echo $swarm.velocity
-            echo $swarm.velocity.typeOf()
+        test "update keeps bookkeeping consistent":
+            var swarm = createSwarm[S16]()
+            swarm.init(0.25, 0.75)
+            swarm.addGlobalBest(0b1111_0000'u16)
+            swarm.addIndividual(0b0000_1111'u16)
 
-            swarm.add(0b0111_0000.S16())
-            swarm.add(0b0111_0000.S16())
-            swarm.addIndividual()
-            echo $swarm 
+            let before = swarm.individuals[0].currentSolution
+            swarm.update()
+
+            check swarm.individuals.len == 1
+            check swarm.bestSolutions.len == 1
+            check swarm.individuals[0].lastSolution == before

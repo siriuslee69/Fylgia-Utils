@@ -1,8 +1,8 @@
-# ===============================================
-# | Fylgia Utils Level1 - Byte Helpers           |
-# |---------------------------------------------|
-# | Basic byte/string conversions and utilities.|
-# ===============================================
+# ===========================================
+# | Fylgia Utils - Byte Helpers              |
+# |-----------------------------------------|
+# | Basic byte/string conversions and tools.|
+# ===========================================
 
 import std/strutils
 

@@ -1,10 +1,10 @@
-# ===============================================
-# | Fylgia Utils Level2 - Text Profiles          |
-# |---------------------------------------------|
-# | Generic string and numeric limit helpers.    |
-# ===============================================
+# ===========================================
+# | Fylgia Utils - Text Profiles             |
+# |-----------------------------------------|
+# | Generic string and numeric limit helpers.|
+# ===========================================
 
-import ../level1/text_validation
+import ./text_validation
 
 type
   LengthLimit* = object

@@ -38,17 +38,20 @@ proc mapValue*(weightMap: WeightMap, x: int): int =
         l: int = weightMap.len()
         lB: int
         uB: int
+    if l < 2:
+        return -1
     while i < l-1: #l-1 because i+1 doesnt exist for the last mapping!
         lB = weightMap[i]   #lower bound
         uB = weightMap[i+1]   #upper bound
         if x.isBetweenUI(lB, uB):
             return i
         i.inc()
+    return -1
 
 
 when defined(test):
     
-    import std/unittest, ../debugging/checks
+    import std/unittest
 
     suite "Weights":
         test "weightMap":
@@ -59,19 +62,19 @@ when defined(test):
                 testResult = [1,3,3,0,0,2]
             let
                 weightMap = weights.weightMap()          
-            echo $cumulativeWeights
-            echo $weightMap
-            echo $testResult
-            for i in 0.. 3:
+            for i in 0 ..< cumulativeWeights.len:
                 let 
                     a = weightMap[i]
                     b = cumulativeWeights[i]
-                echoCheck(a, b) #does nothing, unless debug flag is defined
                 check( a == b )
     
-            for i in 0.. 5:
+            for i in 0 ..< testResult.len:
                 let
                     a = testResult[i]
                     b = weightMap.mapValue(randomValues[i]) 
-                echoCheck(a, b)
                 check (a == b)
+
+        test "mapValue returns -1 outside covered ranges":
+            let wm = weightMap([2, 3, 1])
+            check wm.mapValue(0) == -1
+            check wm.mapValue(7) == -1

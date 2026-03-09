@@ -1,8 +1,8 @@
-# ===============================================
-# | Fylgia Utils Level1 - JSON Helpers           |
-# |---------------------------------------------|
-# | Small helpers for JSON and byte payloads.    |
-# ===============================================
+# ===========================================
+# | Fylgia Utils - JSON Helpers              |
+# |-----------------------------------------|
+# | Small helpers for JSON and byte payloads.|
+# ===========================================
 
 import std/json
 import ./byte_utils

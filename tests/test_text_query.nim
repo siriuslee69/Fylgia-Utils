@@ -1,7 +1,7 @@
 import std/unittest
 
 import ../src/fylgia_utils
-import ../src/fylgia_utils/level1/text_query/types
+import ../src/fylgia_utils/text_query/types
 
 suite "text query":
   test "tokenizes and parses boolean query":
@@ -32,4 +32,3 @@ suite "text query":
     let parsed = parseTextQuery("""thisword AND (other OR""")
     check not parsed.ok
     check parsed.err.len > 0
-

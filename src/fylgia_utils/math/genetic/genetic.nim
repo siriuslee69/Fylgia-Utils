@@ -5,8 +5,10 @@ type
         p: proc(x, y: T): Q 
 
 
-proc add[T, Q: SomeNumber](s: seq[Op], op: proc(x,y:T):Q, name: string, weight: int ): void =
-    s.add((name, weight, op))
+proc add*[T, Q: SomeNumber](operations: var seq[Op[T, Q]],
+    op: proc(x, y: T): Q, name: string, weight: int) =
+    operations.add((name, weight, op))
+
 const 
     ops*: array[8, Op[int, int]] = [
         ( "and", 1, proc(x,y: int): int = x and y),
@@ -20,18 +22,23 @@ const
             if y == 0: 
                 return x
             else: 
-                return (x / y).toInt())
+                return x div y)
         ]
 
 when defined(test):
 
-    import std/unittest, ../../debugging/checks
+    import std/unittest
 
     suite "Genetic":
-        test "op template":
-            var 
-                res: int
-            for op in ops:
-                res = op.p(1,3)
-                echo $res
+        test "registers custom operations":
+            var customOps: seq[Op[int, int]] = @[]
+            add(customOps, proc(x, y: int): int = x + y, "sum", 2)
+            check customOps.len == 1
+            check customOps[0].n == "sum"
+            check customOps[0].w == 2
+            check customOps[0].p(4, 5) == 9
+
+        test "builtin div op guards zero":
+            check ops[^1].p(9, 0) == 9
+            check ops[^1].p(9, 3) == 3
 

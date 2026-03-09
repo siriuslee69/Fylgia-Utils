@@ -1,6 +1,6 @@
-## ------------------------------------------------
-## Text Query Types <- reusable boolean contains parser
-## ------------------------------------------------
+## ----------------------------------------------
+## Text Query Types <- reusable boolean parser
+## ----------------------------------------------
 
 type
   ## TextQueryTokenKind: lexer token kinds for boolean query strings.
@@ -37,4 +37,3 @@ type
   TextQuery* = object
     source*: string
     root*: TextQueryNode
-
