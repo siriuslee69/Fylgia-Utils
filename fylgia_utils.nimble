@@ -63,8 +63,8 @@ task debug, "Run tests":
       if file.rfind(shortenedFileName) != -1:
         exec "nim c -d:test -d:debug -r src/" & file & ".nim"
 
-task autopush, "Add, commit, and push with message from valk/progress.md":
-  let path = "valk/progress.md"
+task autopush, "Add, commit, and push with message from iron/progress.md":
+  let path = "iron/progress.md"
   var msg = ""
   if fileExists(path):
     let content = readFile(path)
