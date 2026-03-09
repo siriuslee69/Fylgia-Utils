@@ -1,0 +1,31 @@
+# ignore files with no extention:
+*
+!*/
+!*.*
+
+# normal ignores:
+*.exe
+*.dll
+*.data
+*.a
+*.o
+*.so
+*.lib
+*.dylib
+*.pyc
+nimcache
+*.pdb
+*.ilk
+.*
+!.github
+*.glsl
+node_modules
+package-lock.json
+package.json
+tmp
+*.plist
+*.dSYM
+
+# Don't need nimble.paths yet
+*.paths 
+valk/valkyrie_config.md

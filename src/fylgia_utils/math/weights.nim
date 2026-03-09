@@ -1,0 +1,77 @@
+type 
+    WeightMap* = seq[int]
+
+proc isBetweenUI*(x,a,b: SomeNumber): bool =
+    ##Checks if a number is between two other numbers (upper bound/right bound included)
+    return (a < x) and (x <= b) 
+
+proc isBetweenLI*(x,a,b: SomeNumber): bool =
+    ##Checks if a number is between two other numbers (lower bound/left bound included)
+    return (a <= x) and (x < b) 
+
+proc isBetweenLIUI*(x,a,b: SomeNumber): bool =
+    ##Checks if a number is between two other numbers (both bounds included)
+    return (a <= x) and (x <= b) 
+
+proc isBetween*(x,a,b: SomeNumber): bool =
+    ##Checks if a number is between two other numbers (both numbers excluded)
+    return (a < x) and (x < b) 
+
+proc weightMap*(weights: openArray[int]): WeightMap =
+    ## Generates a weightMap (sequence of ints) with each tuple holding the higher bound of the indexvalue it should be mapped to
+    # Cumulative is just a different word for "sum" or "summed up" (= addition / +)
+    var 
+        cumulativeWeight: int = 0
+    result.add(0) # needs a 0 at the beginning, so the first interval can start from 0 -> (0,4] for example.
+    for weight in weights:
+        cumulativeWeight = cumulativeWeight + weight
+        result.add(cumulativeWeight)
+
+proc mapValue*(weightMap: WeightMap, x: int): int =
+    ## The WeightMap type is just a seq[int]. Two of these entries would define an interval with (lB, uB] 
+    ## The provided x value is then mapped to the respective index in the sequence of the lower bound (if it is within this interval). 
+    ## Attention: The lower bound / left value is NOT included.
+    ## Example: For interval (2, 6]: x = 3, x = 4, x = 5, x = 6 will all be mapped to 3 BUT
+    ## x = 2 will NOT be mapped to 3. But to whatever tuple value was before it.
+    var 
+        i: int = 0
+        l: int = weightMap.len()
+        lB: int
+        uB: int
+    while i < l-1: #l-1 because i+1 doesnt exist for the last mapping!
+        lB = weightMap[i]   #lower bound
+        uB = weightMap[i+1]   #upper bound
+        if x.isBetweenUI(lB, uB):
+            return i
+        i.inc()
+
+
+when defined(test):
+    
+    import std/unittest, ../debugging/checks
+
+    suite "Weights":
+        test "weightMap":
+            const 
+                weights = [2, 3, 1, 4]
+                cumulativeWeights = [0, 2, 5, 6, 10] # 0 <- first value needs to be 0 for loop-index reasons.  0+2 = 2, 2+3 = 5, 5+1 = 6, 6+4 = 10
+                randomValues = [4, 7, 8, 1, 2, 6] 
+                testResult = [1,3,3,0,0,2]
+            let
+                weightMap = weights.weightMap()          
+            echo $cumulativeWeights
+            echo $weightMap
+            echo $testResult
+            for i in 0.. 3:
+                let 
+                    a = weightMap[i]
+                    b = cumulativeWeights[i]
+                echoCheck(a, b) #does nothing, unless debug flag is defined
+                check( a == b )
+    
+            for i in 0.. 5:
+                let
+                    a = testResult[i]
+                    b = weightMap.mapValue(randomValues[i]) 
+                echoCheck(a, b)
+                check (a == b)
