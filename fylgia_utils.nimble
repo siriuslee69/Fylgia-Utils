@@ -34,6 +34,7 @@ task test, "Run tests":
   let userParam = paramStr(paramCount()) #Grabs the parameter at the last position - in this case, the provided file name
   if userParam.len() == 0 or userParam == "test":
     exec "nim c --nimcache:nimcache/test_smoke -r tests/test_smoke.nim"
+    exec "nim c --nimcache:nimcache/test_config_io -r tests/test_config_io.nim"
     exec "nim c --nimcache:nimcache/test_text_query -r tests/test_text_query.nim"
     exec "nim c --nimcache:nimcache/test_math -r tests/test_math.nim"
     return

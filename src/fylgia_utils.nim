@@ -6,18 +6,20 @@
 
 const FylgiaUtilsVersion* = "0.1.0"
 
-import fylgia_utils/byte_utils
-import fylgia_utils/base64_utils
-import fylgia_utils/json_utils
-import fylgia_utils/time_utils
-import fylgia_utils/id_utils
-import fylgia_utils/text_validation
+import fylgia_utils/io/byte_utils
+import fylgia_utils/io/base64_utils
+import fylgia_utils/io/config_io
+import fylgia_utils/io/json_utils
+import fylgia_utils/time/time_utils
+import fylgia_utils/identity/id_utils
+import fylgia_utils/validation/text_validation
 import fylgia_utils/text_query/ops
-import fylgia_utils/text_profiles
-import fylgia_utils/limit_defaults
+import fylgia_utils/validation/text_profiles
+import fylgia_utils/validation/limit_defaults
 
 export byte_utils
 export base64_utils
+export config_io
 export json_utils
 export time_utils
 export id_utils
