@@ -4,7 +4,7 @@ This repo is meant to be a collection of some code I often use and want to have 
 
 It also contains reusable parsers and small query helpers that are intended to
 be shared across other repos instead of being reimplemented locally. The first
-one is the boolean text-query parser under `src/fylgia_utils/text_query/`,
+one is the boolean text-query parser under `src/protocols/text_query/`,
 which accepts queries such as:
 
 ```text
@@ -15,10 +15,15 @@ invoice AND 2025 AND NOT draft
 The matcher is substring-based by default and is meant for lightweight path,
 tag, and search filtering.
 
+`src/protocols/containers/circ_seq.nim` provides `CircSeq`, a growable circular
+FIFO sequence for inboxes and queues. It supports `push`, `pop`, runtime
+capacity changes, and normal `queue[0]` array notation for logical reads
+without shifting stored values on every pop.
+
 ## Layout
 
 The old `level1` / `level2` buckets have been removed. Shared modules now live
-under `src/fylgia_utils/` by function instead of by abstract dependency level.
+under `src/protocols/` by function instead of by abstract dependency level.
 
 Core regression coverage lives in `tests/`, while some modules still keep
 focused inline checks behind `-d:test`.
@@ -64,3 +69,17 @@ nim c -d:test -r fileName.nim
 ## Warning
 
 Use at your own risk. Subject to change. 
+
+## Issue Playbook
+
+- Symptom: `nimble autopush` falls back to the generic commit message.
+- Cause: No `Commit Message:` line found in `.iron/PROGRESS.md`.
+- Workaround: Add or update the `Commit Message:` line in `.iron/PROGRESS.md` before running `nimble autopush`.
+
+- Symptom: Unexpected binary files appear under `src/` or `tests/` after local test runs.
+- Cause: Local Nim builds generate `.exe` artifacts.
+- Workaround: Re-run tests through nimble and remove generated binaries before committing. `.gitignore` now blocks `*.exe`, `src/**/*.exe`, and `tests/**/*.exe`.
+
+- Symptom: `nimble test` fails before compilation with a Nimble metadata write error.
+- Cause: Local environment cannot write Nimble cache data in the user profile.
+- Workaround: Fix local write permissions for the Nimble home/cache directory, then rerun `nimble test`.

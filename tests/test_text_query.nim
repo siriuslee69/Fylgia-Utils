@@ -1,7 +1,7 @@
 import std/unittest
 
 import ../src/fylgia_utils
-import ../src/fylgia_utils/text_query/types
+import ../src/protocols/text_query/types
 
 suite "text query":
   test "tokenizes and parses boolean query":

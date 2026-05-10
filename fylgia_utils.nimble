@@ -1,4 +1,4 @@
-﻿import std/[os, strutils]
+import std/[os, strutils]
 
 # Package
 
@@ -13,7 +13,7 @@ srcDir        = "src"
 requires "nim >= 1.6.0", "owlkettle >= 3.0.0", "illwill >= 0.4.0"
 
 when not defined(nimscript):
-  import src/fylgia_utils/dirs/files
+  import src/protocols/dirs/files
 else:
   proc getAllFilesWithEnding*(sDir: string, y: string): seq[string] =
     result = @[]
@@ -37,6 +37,7 @@ task test, "Run tests":
     exec "nim c --nimcache:nimcache/test_config_io -r tests/test_config_io.nim"
     exec "nim c --nimcache:nimcache/test_text_query -r tests/test_text_query.nim"
     exec "nim c --nimcache:nimcache/test_math -r tests/test_math.nim"
+    exec "nim c --nimcache:nimcache/test_circ_seq -r tests/test_circ_seq.nim"
     return
   if (userParam == "all"):
     let 
@@ -64,10 +65,15 @@ task debug, "Run tests":
       if file.rfind(shortenedFileName) != -1:
         exec "nim c -d:test -d:debug -r src/" & file & ".nim"
 
-task autopush, "Add, commit, and push with message from iron/progress.md":
-  let path = "iron/progress.md"
+task autopush, "Add, commit, and push with message from .iron/PROGRESS.md":
+  let candidates = @[".iron/PROGRESS.md", ".iron/progress.md", "iron/progress.md"]
+  var path = ""
   var msg = ""
-  if fileExists(path):
+  for c in candidates:
+    if fileExists(c):
+      path = c
+      break
+  if path.len > 0:
     let content = readFile(path)
     for line in content.splitLines:
       if line.startsWith("Commit Message:"):

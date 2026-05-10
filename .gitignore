@@ -5,6 +5,8 @@
 
 # normal ignores:
 *.exe
+src/**/*.exe
+tests/**/*.exe
 *.dll
 *.data
 *.a

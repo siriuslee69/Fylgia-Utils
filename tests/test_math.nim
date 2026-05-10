@@ -1,9 +1,9 @@
 import std/unittest
 
-import ../src/fylgia_utils/math/analysis/polynomials
-import ../src/fylgia_utils/math/genetic/genetic
-import ../src/fylgia_utils/math/particleSwarm/MBnvPSO
-import ../src/fylgia_utils/math/weights
+import ../src/protocols/math/analysis/polynomials
+import ../src/protocols/math/genetic/genetic
+import ../src/protocols/math/particleSwarm/MBnvPSO
+import ../src/protocols/math/weights
 
 suite "polynomials":
   test "normalizes like terms and differentiates":
