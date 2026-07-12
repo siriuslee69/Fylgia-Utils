@@ -4,12 +4,100 @@
 # | Parse/render JSON and TOML config root nodes.  |
 # ==================================================
 
-import std/[json, os, strutils]
+import std/[json, os, parsejson, sets, streams, strutils]
 
 type
   ConfigFormat* = enum
     cfgJson,
     cfgToml
+
+proc jsonPathChild(path, key: string): string =
+  ## Build one dotted JSON path for duplicate-key diagnostics.
+  if path.len == 0 or path == "$":
+    result = "$." & key
+  else:
+    result = path & "." & key
+
+proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
+  ## Reject duplicate JSON object keys before std/json overwrites them.
+  var
+    parser: JsonParser
+  open(parser, newStringStream(rawData), sourcePath)
+  defer:
+    close(parser)
+
+  proc fail(msg: string) {.noreturn.} =
+    raise newException(JsonParsingError, msg)
+
+  proc failParser() {.noreturn.} =
+    raise newException(JsonParsingError, errorMsg(parser))
+
+  proc walkValue(path: string)
+
+  proc walkObject(path: string) =
+    var
+      seen: HashSet[string] = initHashSet[string]()
+      key: string = ""
+      childPath: string = ""
+    next(parser)
+    while true:
+      case kind(parser)
+      of jsonObjectEnd:
+        next(parser)
+        return
+      of jsonString:
+        key = str(parser)
+        childPath = jsonPathChild(path, key)
+        if seen.contains(key):
+          fail("duplicate JSON key: " & childPath)
+        seen.incl(key)
+        next(parser)
+        walkValue(childPath)
+      of jsonError:
+        failParser()
+      of jsonEof:
+        fail("unexpected EOF while parsing JSON object")
+      else:
+        fail("invalid JSON object state near " & path)
+
+  proc walkArray(path: string) =
+    var
+      i: int = 0
+    next(parser)
+    while true:
+      case kind(parser)
+      of jsonArrayEnd:
+        next(parser)
+        return
+      of jsonError:
+        failParser()
+      of jsonEof:
+        fail("unexpected EOF while parsing JSON array")
+      else:
+        walkValue(path & "[" & $i & "]")
+        i = i + 1
+
+  proc walkValue(path: string) =
+    case kind(parser)
+    of jsonObjectStart:
+      walkObject(path)
+    of jsonArrayStart:
+      walkArray(path)
+    of jsonString, jsonInt, jsonFloat, jsonTrue, jsonFalse, jsonNull:
+      next(parser)
+    of jsonError:
+      failParser()
+    of jsonEof:
+      fail("unexpected EOF while parsing JSON value")
+    else:
+      fail("invalid JSON value state near " & path)
+
+  next(parser)
+  walkValue("$")
+  if kind(parser) == jsonError:
+    failParser()
+  if kind(parser) != jsonEof:
+    fail("unexpected trailing JSON content")
 
 proc detectConfigFormat*(p: string): ConfigFormat =
   ## p: config file path used to infer the format.
@@ -495,6 +583,7 @@ proc renderTomlNode*(node: JsonNode): string =
 proc parseConfigText*(raw: string; format: ConfigFormat): JsonNode =
   case format
   of cfgJson:
+    assertNoDuplicateJsonKeys(raw, "config JSON")
     result = parseJson(raw)
   of cfgToml:
     result = parseTomlNode(raw)
