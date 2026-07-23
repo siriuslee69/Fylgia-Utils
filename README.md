@@ -1,0 +1,85 @@
+# Fylgia Utils
+
+This repo is meant to be a collection of some code I often use and want to have access to.
+
+It also contains reusable parsers and small query helpers that are intended to
+be shared across other repos instead of being reimplemented locally. The first
+one is the boolean text-query parser under `src/protocols/text_query/`,
+which accepts queries such as:
+
+```text
+invoice AND 2025 AND NOT draft
+("project alpha" AND notes) OR archive
+```
+
+The matcher is substring-based by default and is meant for lightweight path,
+tag, and search filtering.
+
+`src/protocols/containers/circ_seq.nim` provides `CircSeq`, a growable circular
+FIFO sequence for inboxes and queues. It supports `push`, `pop`, runtime
+capacity changes, and normal `queue[0]` array notation for logical reads
+without shifting stored values on every pop.
+
+## Layout
+
+The old `level1` / `level2` buckets have been removed. Shared modules now live
+under `src/protocols/` by function instead of by abstract dependency level.
+
+Core regression coverage lives in `tests/`, while some modules still keep
+focused inline checks behind `-d:test`.
+
+To test everything, first, go into a folder of your choice, make sure you have git installed and:
+
+```bash
+git clone https://github.com/siriuslee69/Fylgia-Utils
+```
+
+Then inside this directory you can call the tests in different ways.
+You can run all tests at once via nimble:
+
+```bash
+nimble test all
+```
+or just
+
+```bash
+nimble test 
+```
+To test only a single file via nimble, you can use:
+
+```bash
+nimble test filename 
+```
+- no .nim ending or relative path needed.
+
+If you don't want to use nimble for whatever reason, you can just provide the flags manually:
+
+
+```bash
+nim c -d:test -r fylgia_utils.nim
+```
+- tests everything.
+
+```bash
+nim c -d:test -r fileName.nim
+```
+
+- tests only one file (you have to switch into its directory first though).
+
+## Warning
+
+Use at your own risk. Subject to change. 
+
+## Issue Playbook
+
+- Symptom: `nimble autopush` falls back to the generic commit message.
+- Cause: No `Commit Message:` line found in `.iron/PROGRESS.md`.
+- Workaround: Add or update the `Commit Message:` line in `.iron/PROGRESS.md` before running `nimble autopush`.
+
+- Symptom: Unexpected binary files appear under `src/` or `tests/` after local test runs.
+- Cause: Local Nim builds generate `.exe` artifacts.
+- Workaround: Re-run tests through nimble and remove generated binaries before committing. `.gitignore` now blocks `*.exe`, `src/**/*.exe`, and `tests/**/*.exe`.
+
+- Symptom: `nimble test` fails before compilation with a Nimble metadata write error.
+- Cause: Local environment cannot write Nimble cache data in the user profile.
+- Workaround: Fix local write permissions for the Nimble home/cache directory, then rerun `nimble test`.
