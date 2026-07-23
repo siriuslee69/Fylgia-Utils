@@ -194,16 +194,17 @@ proc splitDottedTomlPath(raw: string): seq[string] =
     part: string
     t: string = raw.strip()
   if t.len == 0:
-    return @[]
+    raise newException(ValueError, "empty TOML dotted path")
   i = 0
   while i <= t.len:
     if i == t.len or (t[i] == '.' and not inDouble and not inSingle):
       part = t[start ..< i].strip()
-      if part.len > 0:
-        if part.len >= 2 and ((part[0] == '"' and part[^1] == '"') or
-            (part[0] == '\'' and part[^1] == '\'')):
-          part = part[1 .. ^2]
-        result.add(part)
+      if part.len == 0:
+        raise newException(ValueError, "empty TOML dotted path segment")
+      if part.len >= 2 and ((part[0] == '"' and part[^1] == '"') or
+          (part[0] == '\'' and part[^1] == '\'')):
+        part = part[1 .. ^2]
+      result.add(part)
       start = i + 1
       i = i + 1
       continue
@@ -228,6 +229,8 @@ proc splitDottedTomlPath(raw: string): seq[string] =
     elif t[i] == '\'':
       inSingle = true
     i = i + 1
+  if inDouble or inSingle or escapeNext:
+    raise newException(ValueError, "unterminated TOML dotted path")
 
 proc lastArrayObject(n: JsonNode): JsonNode =
   if n.kind != JArray:
@@ -294,6 +297,8 @@ proc assignTomlValue(cur: JsonNode; parts: seq[string]; value: JsonNode) =
     i = i + 1
   if node.kind != JObject:
     raise newException(ValueError, "invalid TOML assignment target")
+  if node.hasKey(parts[^1]):
+    raise newException(ValueError, "duplicate TOML key path: " & parts.join("."))
   node[parts[^1]] = value
 
 proc skipTomlWhitespace(raw: string; pos: var int) =
@@ -449,6 +454,8 @@ proc splitTomlKeyValue(raw: string): tuple[ok: bool, key: string, value: string]
     elif line[i] == '=':
       return (true, line[0 ..< i].strip(), line[i + 1 .. ^1].strip())
     i = i + 1
+  if inDouble or inSingle or escapeNext:
+    raise newException(ValueError, "unterminated TOML key/value line")
   result = (false, "", "")
 
 proc parseTomlNode*(raw: string): JsonNode =
@@ -551,8 +558,6 @@ proc emitTomlObject(path: seq[string]; node: JsonNode; lines: var seq[string];
     scalarKeys: seq[string] = @[]
     objectKeys: seq[string] = @[]
     arrayTableKeys: seq[string] = @[]
-    key: string
-    value: JsonNode
   if node.kind != JObject:
     raise newException(ValueError, "TOML output root must be a JSON object")
   if emitHeader:

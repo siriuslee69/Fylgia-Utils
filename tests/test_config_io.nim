@@ -73,3 +73,33 @@ alias = "B"
     check loaded["retry"].getInt() == 3
     if fileExists(p):
       removeFile(p)
+
+  test "TOML parser rejects unterminated quoted table paths":
+    expect ValueError:
+      discard parseTomlNode("""
+[runtime."broken]
+tcpPort = 5050
+""")
+
+  test "TOML parser rejects empty dotted table path segments":
+    expect ValueError:
+      discard parseTomlNode("""
+[runtime..broken]
+tcpPort = 5050
+""")
+    expect ValueError:
+      discard parseTomlNode("""
+[]
+tcpPort = 5050
+""")
+
+  test "TOML parser rejects duplicate keys instead of overwriting":
+    expect ValueError:
+      discard parseTomlNode("""
+title = "first"
+title = "second"
+""")
+
+  test "JSON config parser rejects duplicate keys instead of overwriting":
+    expect ValueError:
+      discard parseConfigText("""{"mode":"first","mode":"second"}""", cfgJson)
