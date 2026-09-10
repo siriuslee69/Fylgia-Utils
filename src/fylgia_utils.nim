@@ -18,6 +18,7 @@ import protocols/text_query/ops
 import protocols/validation/text_profiles
 import protocols/validation/limit_defaults
 import protocols/containers/circ_seq
+import protocols/math/vector_space
 
 export byte_utils
 export base64_utils
@@ -31,3 +32,4 @@ export ops
 export text_profiles
 export limit_defaults
 export circ_seq
+export vector_space
