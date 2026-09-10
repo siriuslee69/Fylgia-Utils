@@ -38,6 +38,7 @@ task test, "Run tests":
     exec "nim c --nimcache:nimcache/test_text_query -r tests/test_text_query.nim"
     exec "nim c --nimcache:nimcache/test_math -r tests/test_math.nim"
     exec "nim c --nimcache:nimcache/test_circ_seq -r tests/test_circ_seq.nim"
+    exec "nim c --nimcache:nimcache/test_vector_space -r tests/test_vector_space.nim"
     return
   if (userParam == "all"):
     let 
