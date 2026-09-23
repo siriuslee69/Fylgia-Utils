@@ -34,3 +34,7 @@ build/
 agents/.local*
 CONVENTIONS.md
 
+
+# submodules are folders without an extension, .gitmodules starts with a dot
+!submodules/*
+!.gitmodules

@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: Move tests under evaluation/, progress under agents/, and the git tasks onto the template
+Commit Message: Take the generic nimble tasks from Nimble-Tasks
 
 Features (Planned):
 - Declare a `role` on every routine (import `runePragmas` from the shared
