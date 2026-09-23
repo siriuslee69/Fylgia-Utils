@@ -3,7 +3,7 @@
 
 import std/unittest
 
-import ../src/protocols/math/vector_space
+import ../../src/protocols/math/vector_space
 
 proc sampleSpace(): VectorSpace =
   ## Five routines measured three ways. `a` and `b` are twins, `c` and

@@ -6,7 +6,7 @@
 # normal ignores:
 *.exe
 src/**/*.exe
-tests/**/*.exe
+evaluation/**/*.exe
 *.dll
 *.data
 *.a
@@ -30,7 +30,7 @@ tmp
 
 # Don't need nimble.paths yet
 *.paths 
-valk/valkyrie_config.md
-.iron/.local*
-!.iron/.local*.template
+build/
+agents/.local*
+CONVENTIONS.md
 

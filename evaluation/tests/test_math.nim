@@ -1,9 +1,9 @@
 import std/unittest
 
-import ../src/protocols/math/analysis/polynomials
-import ../src/protocols/math/genetic/genetic
-import ../src/protocols/math/particleSwarm/MBnvPSO
-import ../src/protocols/math/weights
+import ../../src/protocols/math/analysis/polynomials
+import ../../src/protocols/math/genetic/genetic
+import ../../src/protocols/math/particleSwarm/MBnvPSO
+import ../../src/protocols/math/weights
 
 suite "polynomials":
   test "normalizes like terms and differentiates":

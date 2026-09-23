@@ -5,7 +5,7 @@
 # =========================================
 
 import std/unittest
-import ../src/fylgia_utils
+import ../../src/fylgia_utils
 
 suite "Fylgia Utils":
   test "root module compiles":

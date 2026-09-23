@@ -5,86 +5,122 @@ import std/[os, strutils]
 version       = "0.1.0"
 author        = "siriuslee69"
 description   = "Collection of some utilities"
-license       = "UNLICENSED"
+license       = "Unlicense"
 srcDir        = "src"
 
 
 # Dependencies
-requires "nim >= 1.6.0", "owlkettle >= 3.0.0", "illwill >= 0.4.0"
+requires "nim >= 1.6.0"
 
-when not defined(nimscript):
-  import src/protocols/dirs/files
-else:
-  proc getAllFilesWithEnding*(sDir: string, y: string): seq[string] =
-    result = @[]
-    for file in walkDirRec(sDir, relative = true):
-      if file.endsWith(y):
-        result.add(file.replace("\\", "/").replace(y, ""))
+proc resolveProgressPath(): string =
+  var
+    ts: seq[string] = @[
+      "agents/PROGRESS.md",
+      "agents/progress.md"
+    ]
+  for t in ts:
+    if fileExists(t):
+      return t
+  result = ts[0]
 
-# This is such bullshit honestly, even ChatGPT couldn't solve this. 
-# To get the last provided user argument from "nimble test someFile" (in this case 'someFile')
-# I have to grab the argument at the LAST position of the paramStr.
-# What Nim doesn't initially tell you is that paramStr is full of other
-# provided parameters internally already by Nim. So if I do paramStr(3) for example,
-# I get "--verbosity:0" which I never provided, nor do I know what it does.
-# I had to go through paramStr(10) ... paramStr(15) till I finally noticed 
-# that the user provided arguments are all the way in the back. 
-# Please learn from my mistakes.
-task test, "Run tests":
-  let userParam = paramStr(paramCount()) #Grabs the parameter at the last position - in this case, the provided file name
-  if userParam.len() == 0 or userParam == "test":
-    exec "nim c --nimcache:nimcache/test_smoke -r tests/test_smoke.nim"
-    exec "nim c --nimcache:nimcache/test_config_io -r tests/test_config_io.nim"
-    exec "nim c --nimcache:nimcache/test_text_query -r tests/test_text_query.nim"
-    exec "nim c --nimcache:nimcache/test_math -r tests/test_math.nim"
-    exec "nim c --nimcache:nimcache/test_circ_seq -r tests/test_circ_seq.nim"
-    exec "nim c --nimcache:nimcache/test_vector_space -r tests/test_vector_space.nim"
-    return
-  if (userParam == "all"):
-    let 
-      shortenedFileName = userParam.replace(".nim", "") #if the filename has an ending, remove it. The paths are all saved without one too. And need to be, for searching
-      paths = "src".getAllFilesWithEnding(".nim")
-    for file in paths:
-        exec "nim c -d:test -d:release -r src/" & file & ".nim"  
-  else:
-    let 
-      shortenedFileName = userParam.replace(".nim", "") #if the filename has an ending, remove it. The paths are all saved without one too. And need to be, for searching
-      paths = "src".getAllFilesWithEnding(".nim")
-    for file in paths:
-      if file.rfind(shortenedFileName) != -1:
-        exec "nim c -d:test -r src/" & file & ".nim"
+proc resolveGitIndexLockPath(): string =
+  result = joinPath(".git", "index.lock")
 
-task debug, "Run tests":
-  let userParam = paramStr(paramCount()) #Grabs the parameter at the last position - in this case, the provided file name
-  if userParam.len() == 0:
-    echo "Please provide the name of the file you'd like to test."
-    return
-  else:
-    let shortenedFileName = userParam.replace(".nim", "") #if the filename has an ending, remove it. The paths are all saved without one too. And need to be, for searching
-    var paths = "src".getAllFilesWithEnding(".nim")
-    for file in paths:
-      if file.rfind(shortenedFileName) != -1:
-        exec "nim c -d:test -d:debug -r src/" & file & ".nim"
+proc resolveAutopushMessagePath(): string =
+  result = joinPath(".git", "autopush-commit-message.txt")
 
-task autopush, "Add, commit, and push with message from .iron/PROGRESS.md":
-  let candidates = @[".iron/PROGRESS.md", ".iron/progress.md", "iron/progress.md"]
-  var path = ""
-  var msg = ""
-  for c in candidates:
-    if fileExists(c):
-      path = c
-      break
-  if path.len > 0:
-    let content = readFile(path)
+proc resolveCommitMessage(progressPath: string): string =
+  var msg: string = ""
+  if fileExists(progressPath):
+    var content = readFile(progressPath)
     for line in content.splitLines:
       if line.startsWith("Commit Message:"):
         msg = line["Commit Message:".len .. ^1].strip()
         break
   if msg.len == 0:
     msg = "No specific commit message given."
+  result = msg
+
+proc captureGit(args: string): string =
+  ## args: one git subcommand line; output is returned, failure quits.
+  var t = gorgeEx("git " & args)
+  if t.exitCode != 0:
+    if t.output.len > 0:
+      echo t.output
+    quit(t.exitCode)
+  result = t.output
+
+proc isGeneratedOrLocalArtifact(path: string): bool =
+  ## path: one staged repo-relative path checked against local/generated outputs.
+  var p = path.replace('\\', '/')
+  result = splitPath(p).tail.startsWith(".fuse_hidden") or
+    p.startsWith("nimcache") or
+    p.startsWith("build/") or p.startsWith("builds/") or
+    p.startsWith(".gradle/") or p.startsWith(".kotlin/") or
+    p.endsWith(".exe") or p.endsWith(".dll") or p.endsWith(".so") or
+    p.endsWith(".dylib") or p.endsWith(".o") or p.endsWith(".obj") or
+    p.endsWith(".a") or p.endsWith(".lib") or p.endsWith(".pdb") or
+    p == "local.properties" or p == "userconfig.toml" or
+    p == "nimble.paths" or p == "nimble.develop" or
+    p.startsWith("agents/.local")
+
+## ---------------------------------------------------------------------------
+## Canonical git workflow tasks <- copy autopush/switch/applyNightly verbatim
+## into every repo's .nimble file. Repos work on `nightly` day to day;
+## `applyNightly` promotes the tested state onto `main` by fast-forward.
+##
+##   autopush     -> stage all, refuse generated/local artifacts, commit
+##                   with the message from agents/PROGRESS.md, then push
+##   switch       -> toggle the checkout between nightly and main
+##   applyNightly -> fast-forward main to nightly locally and on origin
+## ---------------------------------------------------------------------------
+
+task autopush, "Add, commit, and push after rejecting generated/local artifacts":
+  var
+    progressPath: string = resolveProgressPath()
+    lockPath: string = resolveGitIndexLockPath()
+    msg: string = resolveCommitMessage(progressPath)
+    msgPath: string = resolveAutopushMessagePath()
+    staged: string = ""
+  if fileExists(lockPath):
+    quit(
+      "Refusing to run autopush because Git lock exists at " & lockPath &
+      ". If no Git process is active, remove the stale lock and retry."
+    )
   exec "git add -A ."
-  exec "git commit -m \" " & msg & "\""
+  staged = captureGit("diff --cached --name-only").strip()
+  if staged.len == 0:
+    echo "No staged changes. Skipping commit."
+  else:
+    for stagedPath in staged.splitLines:
+      if isGeneratedOrLocalArtifact(stagedPath):
+        echo "Refusing autopush: generated/local artifact staged: " & stagedPath
+        echo "Remove it from the index or extend .gitignore before committing."
+        quit(1)
+    writeFile(msgPath, msg & "\n")
+    exec "git commit --file " & msgPath
   exec "git push"
+
+task switch, "Toggle the working branch between nightly and main":
+  var
+    branch: string = captureGit("branch --show-current").strip()
+    target: string = "nightly"
+  if branch == "nightly":
+    target = "main"
+  echo "Switching from '" &
+    (if branch.len > 0: branch else: "(detached HEAD)") &
+    "' to '" & target & "'."
+  exec "git checkout " & target
+
+task applyNightly, "Promote nightly onto main by fast-forward and push":
+  var
+    branch: string = captureGit("branch --show-current").strip()
+  if branch == "main":
+    quit "On 'main'. Run `nimble switch` to move to nightly before applying."
+  exec "git fetch . nightly:main"
+  exec "git push origin nightly:main"
+  echo "main is now at the nightly state; nightly branch left intact."
+
 task find, "Use local clones for submodules in parent folder":
   let modulesPath = ".gitmodules"
   if not fileExists(modulesPath):
@@ -111,9 +147,30 @@ task find, "Use local clones for submodules in parent folder":
             exec "git config submodule." & current & ".url " & localUrl
     exec "git submodule sync --recursive"
 
+task runTests, "Run repository tests":
+  mkDir("build")
+  for path in walkDirRec("evaluation/tests"):
+    if path.endsWith(".nim"):
+      exec "nim c --path:src -o:" &
+        quoteShell(joinPath("build", splitFile(path).name)) & " -r " & quoteShell(path)
 
+task runModuleTests, "Run the self-tests kept at the bottom of src modules":
+  ## Some modules end in a `when defined(test):` block, built with `-d:test`.
+  ## `nimble runModuleTests weights` -> only modules whose path holds "weights".
+  var
+    filter: string = paramStr(paramCount())
+  if filter == "runModuleTests":
+    filter = ""
+  mkDir("build")
+  for path in walkDirRec("src"):
+    if path.endsWith(".nim") and path.contains(filter) and
+        readFile(path).contains("when defined(test):"):
+      exec "nim c -d:test --path:src -o:" &
+        quoteShell(joinPath("build", splitFile(path).name)) & " -r " & quoteShell(path)
 
+task test, "Run unit tests":
+  exec "nimble runTests -y"
 
 task smoke, "Run smoke tests":
-  exec "nim c --nimcache:nimcache/smoke -r ../tests/test_smoke.nim"
-
+  mkDir("build")
+  exec "nim c --path:src -o:build/test_smoke -r evaluation/tests/test_smoke.nim"

@@ -25,7 +25,7 @@ without shifting stored values on every pop.
 The old `level1` / `level2` buckets have been removed. Shared modules now live
 under `src/protocols/` by function instead of by abstract dependency level.
 
-Core regression coverage lives in `tests/`, while some modules still keep
+Core regression coverage lives in `evaluation/tests/`, while some modules still keep
 focused inline checks behind `-d:test`.
 
 To test everything, first, go into a folder of your choice, make sure you have git installed and:
@@ -34,37 +34,22 @@ To test everything, first, go into a folder of your choice, make sure you have g
 git clone https://github.com/siriuslee69/Fylgia-Utils
 ```
 
-Then inside this directory you can call the tests in different ways.
-You can run all tests at once via nimble:
+Then inside this directory we can call the tests in different ways.
 
 ```bash
-nimble test all
+nimble test                     # every file in evaluation/tests/
+nimble smoke                    # only the smoke test
+nimble runModuleTests           # the inline `-d:test` checks inside src/ modules
+nimble runModuleTests weights   # only modules whose path holds "weights"
 ```
-or just
+
+Compiled test programs land in `build/`, which git ignores.
+
+If we don't want to use nimble, we can provide the flags manually:
 
 ```bash
-nimble test 
+nim c -d:test -r src/protocols/math/weights.nim
 ```
-To test only a single file via nimble, you can use:
-
-```bash
-nimble test filename 
-```
-- no .nim ending or relative path needed.
-
-If you don't want to use nimble for whatever reason, you can just provide the flags manually:
-
-
-```bash
-nim c -d:test -r fylgia_utils.nim
-```
-- tests everything.
-
-```bash
-nim c -d:test -r fileName.nim
-```
-
-- tests only one file (you have to switch into its directory first though).
 
 ## Warning
 
@@ -73,12 +58,12 @@ Use at your own risk. Subject to change.
 ## Issue Playbook
 
 - Symptom: `nimble autopush` falls back to the generic commit message.
-- Cause: No `Commit Message:` line found in `.iron/PROGRESS.md`.
-- Workaround: Add or update the `Commit Message:` line in `.iron/PROGRESS.md` before running `nimble autopush`.
+- Cause: No `Commit Message:` line found in `agents/PROGRESS.md`.
+- Workaround: Add or update the `Commit Message:` line in `agents/PROGRESS.md` before running `nimble autopush`.
 
-- Symptom: Unexpected binary files appear under `src/` or `tests/` after local test runs.
-- Cause: Local Nim builds generate `.exe` artifacts.
-- Workaround: Re-run tests through nimble and remove generated binaries before committing. `.gitignore` now blocks `*.exe`, `src/**/*.exe`, and `tests/**/*.exe`.
+- Symptom: Unexpected binary files appear next to sources after local test runs.
+- Cause: Running `nim c -r` by hand writes the program beside the `.nim` file.
+- Workaround: Run tests through nimble (they write into `build/`). `.gitignore` also ignores every file without an extension, which is what Nim programs are on Linux.
 
 - Symptom: `nimble test` fails before compilation with a Nimble metadata write error.
 - Cause: Local environment cannot write Nimble cache data in the user profile.

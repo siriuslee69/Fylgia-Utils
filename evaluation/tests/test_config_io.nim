@@ -5,7 +5,7 @@
 # =========================================
 
 import std/[json, os, unittest]
-import ../src/fylgia_utils
+import ../../src/fylgia_utils
 
 proc tempConfigPath(name: string): string =
   result = joinPath(getTempDir(), name)
