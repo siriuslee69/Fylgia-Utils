@@ -1,54 +1,58 @@
-proc isEven*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](x: T): bool =
-    ## Returns true if its even, false if it is not
-    return not ((x and 1).bool)
+import runePragmas
 
-proc toEvenDec*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](x: T): T =
+proc isEven*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](x: T): bool {.role: math.} =
+    ## Returns true if its even, false if it is not
+    result = not ((x and 1).bool)
+
+proc toEvenDec*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](x: T): T {.role: math.} =
     ## Will cut off the uneven bit if there is one, results in a lower number
     ## Will not cause overflow issues but might result in a 0
-    ## Equivalent to decrementing the absolute value |x| by one 
-    let
+    ## Equivalent to decrementing the absolute value |x| by one
+    var
         uneven: T = x and 1.T
-        decremented: T = x and not uneven
-    return decremented
+        decremented: T = 0
+    decremented = x and not uneven
+    result = decremented
 
-proc toEvenInc*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](x: T): T = 
-    ## Increment to the next bigger integer if it's not even 
+proc toEvenInc*[T: uint8|uint16|uint32|uint64|int8|int16|int32|int64](x: T): T {.role: math.} =
+    ## Increment to the next bigger integer if it's not even
     ## Max values will overflow, e.g. an uint8 255 +1 -> 0
-    let 
+    var
         uneven: T = x and 1
-        incremented: T = x + uneven
-    return incremented 
+        incremented: T = 0
+    incremented = x + uneven
+    result = incremented
 
-# proc toEvenAbsInc*[T: int8|int16|int32|int64](x: T): T = 
-#     ## Increment to the next bigger integer if it's not even 
+# proc toEvenAbsInc*[T: int8|int16|int32|int64](x: T): T =
+#     ## Increment to the next bigger integer if it's not even
 #     ## Max values will overflow, e.g. an uint8 255 +1 -> 0
-#     const 
+#     const
 #         signMask: T = not((not 0) shr 1)
 #     let
 #         uneven: T = x and 1
-#         isNegative: T = 
-#         sign: T = 
-#         delta: T = uneven * 
+#         isNegative: T =
+#         sign: T =
+#         delta: T = uneven *
 #         incremented: T = x - delta
-#     return incremented 
+#     return incremented
 
 
-# proc toEvenAbsDec*[T: int8|int16|int32|int64](x: T): T = 
-#     ## Increment to the next bigger integer if it's not even 
+# proc toEvenAbsDec*[T: int8|int16|int32|int64](x: T): T =
+#     ## Increment to the next bigger integer if it's not even
 #     ## Max values will overflow, e.g. an uint8 255 +1 -> 0
-#     let 
+#     let
 #         uneven: T = x and 1
 #         incremented: T = x + uneven
-#     return incremented 
+#     return incremented
 
 
 when defined(test):
 
     import std/unittest, ../debugging/checks
-    
+
     suite "Even":
         test "isEven":
-            var 
+            var
                 A: seq[bool] = @[]
                 B: seq[bool] = @[true, false, true, false, true]
             A.add -122.isEven()

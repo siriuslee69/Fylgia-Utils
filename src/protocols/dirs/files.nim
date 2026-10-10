@@ -1,16 +1,17 @@
 import os, strutils
+import runePragmas
 
 type
     CurrentDir* = string
 
-proc setCurrentDir*(cDir: var CurrentDir, dir: string): void =
+proc setCurrentDir*(cDir: var CurrentDir, dir: string): void {.role: configurator.} =
     ## Update a CurrentDir with a new directory value.
     cDir = dir
 
-proc getAllFilesWithEnding*(cDirObj: CurrentDir = "", y: string): seq[string] =
+proc getAllFilesWithEnding*(cDirObj: CurrentDir = "", y: string): seq[string] {.role: dataFetcher.} =
     ## Get all file paths inside a directory with a specific ending.
     var
-        searchDir: string
+        searchDir: string = ""
         paths: seq[string] = @[]
         i: int = 0
 

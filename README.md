@@ -31,8 +31,17 @@ focused inline checks behind `-d:test`.
 To test everything, first, go into a folder of your choice, make sure you have git installed and:
 
 ```bash
-git clone https://github.com/siriuslee69/Fylgia-Utils
+git clone --recurse-submodules https://github.com/siriuslee69/Fylgia-Utils
 ```
+
+The shared pragma repo `Rune-Pragmas` lives in `submodules/Rune-Pragmas`.
+If we cloned without `--recurse-submodules`, we fill it in with:
+
+```bash
+git submodule update --init submodules/Rune-Pragmas
+```
+
+Every routine carries a `role` pragma, which comes from that repo.
 
 Then inside this directory we can call the tests in different ways.
 

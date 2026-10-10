@@ -33,6 +33,7 @@
 ## ==============================================================
 
 import std/[algorithm, math, strutils]
+import runePragmas
 
 type
   FeatureVector* = object
@@ -94,7 +95,7 @@ const
     ## A dimension where everything scored the same is treated as one
     ## flat line rather than being divided by zero.
 
-proc newVectorSpace*(D: openArray[string]): VectorSpace =
+proc newVectorSpace*(D: openArray[string]): VectorSpace {.role: truthBuilder.} =
   ## D <- the name of each measurement, in the order the values come.
   result = VectorSpace(dims: @[], points: @[], lo: @[], hi: @[],
     scaled: false)
@@ -102,7 +103,7 @@ proc newVectorSpace*(D: openArray[string]): VectorSpace =
     result.dims.add(name)
 
 proc addPoint*(S: var VectorSpace, id, label: string,
-    V: openArray[float]) =
+    V: openArray[float]): void {.role: truthBuilder.} =
   ## S <- the room being filled   V <- one thing's measurements
   ##
   ## A short list is padded with zeroes and a long one is cut, so one
@@ -119,7 +120,7 @@ proc addPoint*(S: var VectorSpace, id, label: string,
   S.points.add(row)
   S.scaled = false
 
-proc rescale*(S: var VectorSpace) =
+proc rescale*(S: var VectorSpace): void {.role: math.} =
   ## S <- the room, with every dimension squeezed into 0..1.
   ##
   ## Without this a dimension that happens to be counted in hundreds
@@ -164,7 +165,7 @@ proc rescale*(S: var VectorSpace) =
     j = j + 1
   S.scaled = true
 
-proc distance*(a, b: FeatureVector): float =
+proc distance*(a, b: FeatureVector): float {.role: math.} =
   ## a, b <- two things. Straight-line distance between them, the same
   ## way a ruler measures across a sheet of paper, only in as many
   ## directions as there are dimensions.
@@ -179,7 +180,7 @@ proc distance*(a, b: FeatureVector): float =
     i = i + 1
   result = sqrt(t)
 
-proc cosineLikeness*(a, b: FeatureVector): float =
+proc cosineLikeness*(a, b: FeatureVector): float {.role: math.} =
   ## a, b <- two things. How alike their *shape* is, ignoring size:
   ## a short routine and a long one built the same way score high.
   ## 1.0 is the same shape, 0.0 is nothing in common.
@@ -201,7 +202,7 @@ proc cosineLikeness*(a, b: FeatureVector): float =
   if result < 0.0:
     result = 0.0
 
-proc closenessOf*(d: float, half: float = closenessHalf): float =
+proc closenessOf*(d: float, half: float = closenessHalf): float {.role: math.} =
   ## d <- a distance   half <- the distance that should read as 0.5
   ##
   ## Turns a distance into a 0..1 number that behaves like a chance:
@@ -220,11 +221,11 @@ proc closenessOf*(d: float, half: float = closenessHalf): float =
     h = closenessHalf
   result = pow(0.5, d / h)
 
-proc likeness*(a, b: FeatureVector, half: float = closenessHalf): float =
+proc likeness*(a, b: FeatureVector, half: float = closenessHalf): float {.role: math.} =
   ## a, b <- two things. Their distance read straight as a 0..1 number.
   result = closenessOf(distance(a, b), half)
 
-proc indexOf*(S: VectorSpace, id: string): int =
+proc indexOf*(S: VectorSpace, id: string): int {.role: helper.} =
   ## S <- the room   id <- the thing wanted. -1 when it is not there.
   result = -1
   var
@@ -235,14 +236,14 @@ proc indexOf*(S: VectorSpace, id: string): int =
       return
     i = i + 1
 
-proc byCloseness(a, b: Neighbour): int =
+proc byCloseness(a, b: Neighbour): int {.role: helper.} =
   ## a, b <- two neighbours, nearest first.
   result = cmp(a.distance, b.distance)
   if result == 0:
     result = cmp(a.id, b.id)
 
 proc neighboursOf*(S: VectorSpace, id: string, n: int = 8,
-    floor: float = 0.0, half: float = closenessHalf): seq[Neighbour] =
+    floor: float = 0.0, half: float = closenessHalf): seq[Neighbour] {.role: actor.} =
   ## S <- the room   id <- the thing to look around
   ## n <- how many to bring back   floor <- ignore anything less alike
   ##
@@ -271,7 +272,7 @@ proc neighboursOf*(S: VectorSpace, id: string, n: int = 8,
     A.setLen(n)
   result = A
 
-proc centreOf*(S: VectorSpace, A: openArray[int]): seq[float] =
+proc centreOf*(S: VectorSpace, A: openArray[int]): seq[float] {.role: math.} =
   ## S <- the room   A <- which points belong together
   ## The middle of those points, one number per dimension.
   var
@@ -293,7 +294,7 @@ proc centreOf*(S: VectorSpace, A: openArray[int]): seq[float] =
     result[j] = result[j] / A.len.float
     j = j + 1
 
-proc spreadOf*(S: VectorSpace, i: int): float =
+proc spreadOf*(S: VectorSpace, i: int): float {.role: math.} =
   ## S <- the room   i <- one dimension
   ## How widely the things are spread along that one measurement.
   ## A dimension where everyone scores alike tells us nothing and
@@ -317,7 +318,7 @@ proc spreadOf*(S: VectorSpace, i: int): float =
     j = j + 1
   result = sqrt(t / S.points.len.float)
 
-proc dominantAxis*(S: VectorSpace, skip: int): int =
+proc dominantAxis*(S: VectorSpace, skip: int): int {.role: math.} =
   ## S <- the room   skip <- an axis already used, or -1
   ## The dimension along which the things differ most. That is the
   ## most informative direction to draw, because it is the one that
@@ -335,7 +336,7 @@ proc dominantAxis*(S: VectorSpace, skip: int): int =
         result = i
     i = i + 1
 
-proc flatten*(S: VectorSpace): seq[array[2, float]] =
+proc flatten*(S: VectorSpace): seq[array[2, float]] {.role: math.} =
   ## S <- the room. Where to draw each thing on a flat screen, 0..1.
   ##
   ## A screen has two directions and the room has many, so two have
@@ -374,7 +375,7 @@ proc flatten*(S: VectorSpace): seq[array[2, float]] =
     i = i + 1
 
 proc cloudNodes*(S: VectorSpace, radius: float = 0.28,
-    minMembers: int = 2): seq[CloudNode] =
+    minMembers: int = 2): seq[CloudNode] {.role: actor.} =
   ## S <- the room   radius <- how far a clump reaches
   ## minMembers <- a clump smaller than this is not worth a node
   ##
@@ -452,7 +453,7 @@ proc cloudNodes*(S: VectorSpace, radius: float = 0.28,
       result[^1].memberIds.add(S.points[at].id)
     rounds = rounds + 1
 
-proc dimReport*(S: VectorSpace): seq[string] =
+proc dimReport*(S: VectorSpace): seq[string] {.role: helper.} =
   ## S <- the room. One readable line per dimension saying what range
   ## it covered, for a person checking that a measurement is sane.
   var

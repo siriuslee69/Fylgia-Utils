@@ -1,19 +1,21 @@
 import std/monotimes, std/os, std/math
+import runePragmas
 
-proc sleepMono*(milsecs: int): void =
+proc sleepMono*(milsecs: int): void {.role: other.} =
     ## Sleeps in milsecs
     ## Uses the monotimes instead of an os sleep call
     ## Margin of error is within 1500 nanoseconds or 0.0015 milliseconds
     ## More precise than the std/os sleep function
-    let 
-        a = getMonoTime().ticks
-        b = (a + milsecs*1_000_000)
+    var
+        a: int64 = getMonoTime().ticks
+        b: int64 = 0
+    b = (a + milsecs*1_000_000)
     while b >= getMonoTime().ticks:
         discard
     return
 
 template takeTime*(body: untyped): int64 =
-    var 
+    var
         b: MonoTime
         c: int64
         a: MonoTime = getMonoTime()
@@ -23,7 +25,7 @@ template takeTime*(body: untyped): int64 =
     c
 
 template takeTimes*(n: int64, body: untyped): seq[int64] =
-    var 
+    var
         i: int64 = 0
         times: seq[int64] = @[]
     while i < n:
@@ -32,9 +34,9 @@ template takeTimes*(n: int64, body: untyped): seq[int64] =
     times
 
 template takeTimeAverage*(n: int64, body: untyped): int64 =
-    let 
+    let
         T:seq[int64] = n.takeTimes(body)
-    var 
+    var
         a: int64
         i: int64 = 0
         sum: int64 = 0
@@ -44,7 +46,7 @@ template takeTimeAverage*(n: int64, body: untyped): int64 =
     sum div n
 
 when defined(test):
-    
+
     import std/unittest, ../debugging/checks
     suite "takeTime":
         let k = takeTime: discard 5+10*100
@@ -58,11 +60,11 @@ when defined(test):
         test "sleep + benchmark vs std/os":
             const sleeptime = 1000 #milseconds
 
-            var q: int64 
+            var q: int64
             q = takeTime(sleepMono(sleepTime)) - (sleeptime * 1_000_000)
             echo "custom: " & $q
-            check(q <= 2_000 ) 
+            check(q <= 2_000 )
 
             q = takeTime(sleep(sleepTime)) - (sleeptime * 1_000_000)
             echo "std/os: " & $q
-            check(q <= 100_000_000 ) 
+            check(q <= 100_000_000 )

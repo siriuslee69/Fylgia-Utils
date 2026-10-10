@@ -5,20 +5,21 @@
 # ==================================================
 
 import std/[json, os, parsejson, sets, streams, strutils, unicode]
+import runePragmas
 
 type
   ConfigFormat* = enum
     cfgJson,
     cfgToml
 
-proc jsonPathChild(path, key: string): string =
+proc jsonPathChild(path, key: string): string {.role: helper.} =
   ## Build one dotted JSON path for duplicate-key diagnostics.
   if path.len == 0 or path == "$":
     result = "$." & key
   else:
     result = path & "." & key
 
-proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
+proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string): void {.role: parser.} =
   ## Reject duplicate JSON object keys before std/json overwrites them.
   var
     parser: JsonParser = default(JsonParser)
@@ -26,15 +27,15 @@ proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
   defer:
     close(parser)
 
-  proc fail(msg: string) {.noreturn.} =
+  proc fail(msg: string): void {.role: helper, noreturn.} =
     raise newException(JsonParsingError, msg)
 
-  proc failParser() {.noreturn.} =
+  proc failParser(): void {.role: helper, noreturn.} =
     raise newException(JsonParsingError, errorMsg(parser))
 
-  proc walkValue(path: string)
+  proc walkValue(path: string): void {.role: parser.}
 
-  proc walkObject(path: string) =
+  proc walkObject(path: string): void {.role: parser.} =
     var
       seen: HashSet[string] = initHashSet[string]()
       key: string = ""
@@ -60,7 +61,7 @@ proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
       else:
         fail("invalid JSON object state near " & path)
 
-  proc walkArray(path: string) =
+  proc walkArray(path: string): void {.role: parser.} =
     var
       i: int = 0
     next(parser)
@@ -77,7 +78,7 @@ proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
         walkValue(path & "[" & $i & "]")
         i = i + 1
 
-  proc walkValue(path: string) =
+  proc walkValue(path: string): void {.role: parser.} =
     case kind(parser)
     of jsonObjectStart:
       walkObject(path)
@@ -99,7 +100,7 @@ proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
   if kind(parser) != jsonEof:
     fail("unexpected trailing JSON content")
 
-proc detectConfigFormat*(p: string): ConfigFormat =
+proc detectConfigFormat*(p: string): ConfigFormat {.role: parser.} =
   ## p: config file path used to infer the format.
   var
     ext: string = splitFile(p).ext.toLowerAscii()
@@ -108,7 +109,7 @@ proc detectConfigFormat*(p: string): ConfigFormat =
   else:
     result = cfgJson
 
-proc quoteTomlString(v: string): string =
+proc quoteTomlString(v: string): string {.role: helper.} =
   var
     t: string = v
   t = t.replace("\\", "\\\\")
@@ -120,28 +121,30 @@ proc quoteTomlString(v: string): string =
   t = t.replace("\t", "\\t")
   result = "\"" & t & "\""
 
-proc isBareTomlKeyPart(v: string): bool =
+proc isBareTomlKeyPart(v: string): bool {.role: parser.} =
   var
     i: int = 0
     ch: char = '\0'
+  result = false
   if v.len == 0:
-    return false
+    return
   i = 0
   while i < v.len:
     ch = v[i]
     if not ((ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z') or
         (ch >= '0' and ch <= '9') or ch == '-' or ch == '_'):
-      return false
+      result = false
+      return
     i = i + 1
   result = true
 
-proc formatTomlKeyPart(v: string): string =
+proc formatTomlKeyPart(v: string): string {.role: helper.} =
   if isBareTomlKeyPart(v):
     result = v
   else:
     result = quoteTomlString(v)
 
-proc formatTomlPath(parts: seq[string]): string =
+proc formatTomlPath(parts: seq[string]): string {.role: helper.} =
   var
     i: int = 0
     outParts: seq[string] = @[]
@@ -151,13 +154,14 @@ proc formatTomlPath(parts: seq[string]): string =
     i = i + 1
   result = outParts.join(".")
 
-proc stripTomlComment(line: string): string =
+proc stripTomlComment(line: string): string {.role: sanitizer.} =
   var
     i: int = 0
     inDouble: bool = false
     inSingle: bool = false
     escapeNext: bool = false
   i = 0
+  result = line
   while i < line.len:
     if escapeNext:
       escapeNext = false
@@ -180,11 +184,11 @@ proc stripTomlComment(line: string): string =
     elif line[i] == '\'':
       inSingle = true
     elif line[i] == '#':
-      return line[0 ..< i]
+      result = line[0 ..< i]
+      return
     i = i + 1
-  result = line
 
-proc splitDottedTomlPath(raw: string): seq[string] =
+proc splitDottedTomlPath(raw: string): seq[string] {.role: parser.} =
   var
     i: int = 0
     start: int = 0
@@ -232,7 +236,7 @@ proc splitDottedTomlPath(raw: string): seq[string] =
   if inDouble or inSingle or escapeNext:
     raise newException(ValueError, "unterminated TOML dotted path")
 
-proc lastArrayObject(n: JsonNode): JsonNode =
+proc lastArrayObject(n: JsonNode): JsonNode {.role: helper.} =
   if n.kind != JArray:
     raise newException(ValueError, "expected array while resolving TOML table")
   if n.len == 0 or n[n.len - 1].kind != JObject:
@@ -240,7 +244,7 @@ proc lastArrayObject(n: JsonNode): JsonNode =
   result = n[n.len - 1]
 
 proc ensureTomlTable(root: JsonNode; parts: seq[string];
-    arrayTable: bool): JsonNode =
+    arrayTable: bool): JsonNode {.role: truthBuilder.} =
   var
     cur: JsonNode = root
     i: int = 0
@@ -248,7 +252,8 @@ proc ensureTomlTable(root: JsonNode; parts: seq[string];
   if root.kind != JObject:
     raise newException(ValueError, "TOML root must be an object")
   if parts.len == 0:
-    return root
+    result = root
+    return
   i = 0
   while i < parts.len:
     key = parts[i]
@@ -260,7 +265,8 @@ proc ensureTomlTable(root: JsonNode; parts: seq[string];
       elif cur[key].kind != JArray:
         raise newException(ValueError, "TOML table path conflicts with non-array table: " & parts.join("."))
       cur[key].add(newJObject())
-      return cur[key][cur[key].len - 1]
+      result = cur[key][cur[key].len - 1]
+      return
     if not cur.hasKey(key):
       cur[key] = newJObject()
     elif cur[key].kind == JArray:
@@ -273,7 +279,7 @@ proc ensureTomlTable(root: JsonNode; parts: seq[string];
     i = i + 1
   result = cur
 
-proc assignTomlValue(cur: JsonNode; parts: seq[string]; value: JsonNode) =
+proc assignTomlValue(cur: JsonNode; parts: seq[string]; value: JsonNode): void {.role: truthBuilder.} =
   var
     node: JsonNode = cur
     i: int = 0
@@ -301,11 +307,11 @@ proc assignTomlValue(cur: JsonNode; parts: seq[string]; value: JsonNode) =
     raise newException(ValueError, "duplicate TOML key path: " & parts.join("."))
   node[parts[^1]] = value
 
-proc skipTomlWhitespace(raw: string; pos: var int) =
+proc skipTomlWhitespace(raw: string; pos: var int): void {.role: helper.} =
   while pos < raw.len and raw[pos] in {' ', '\t', '\r', '\n'}:
     pos = pos + 1
 
-proc parseTomlUnicodeEscape(raw: string; pos: var int; digits: int): string =
+proc parseTomlUnicodeEscape(raw: string; pos: var int; digits: int): string {.role: parser.} =
   ## raw/pos: `pos` sits on the `u` or `U` of `\uXXXX` / `\UXXXXXXXX`.
   ## digits: 4 or 8. Returns the code point as UTF-8 and leaves `pos` on
   ## the last hex digit, the way a one-letter escape leaves it on its letter.
@@ -324,7 +330,7 @@ proc parseTomlUnicodeEscape(raw: string; pos: var int; digits: int): string =
   pos = pos + digits
   result = toUTF8(Rune(code))
 
-proc parseTomlStringLiteral(raw: string; pos: var int): string =
+proc parseTomlStringLiteral(raw: string; pos: var int): string {.role: parser.} =
   var
     quote: char = '\0'
     ch: char = '\0'
@@ -370,9 +376,9 @@ proc parseTomlStringLiteral(raw: string; pos: var int): string =
     pos = pos + 1
   raise newException(ValueError, "unterminated TOML string")
 
-proc parseTomlValueRaw(raw: string; pos: var int): JsonNode
+proc parseTomlValueRaw(raw: string; pos: var int): JsonNode {.role: parser.}
 
-proc parseTomlArray(raw: string; pos: var int): JsonNode =
+proc parseTomlArray(raw: string; pos: var int): JsonNode {.role: parser.} =
   var
     value: JsonNode = nil
   if pos >= raw.len or raw[pos] != '[':
@@ -399,7 +405,7 @@ proc parseTomlArray(raw: string; pos: var int): JsonNode =
     raise newException(ValueError, "invalid TOML array separator")
   raise newException(ValueError, "unterminated TOML array")
 
-proc parseTomlScalar(raw: string; pos: var int): JsonNode =
+proc parseTomlScalar(raw: string; pos: var int): JsonNode {.role: parser.} =
   var
     start: int = pos
     token: string = ""
@@ -411,22 +417,26 @@ proc parseTomlScalar(raw: string; pos: var int): JsonNode =
   if token.len == 0:
     raise newException(ValueError, "empty TOML value")
   if token == "true":
-    return newJBool(true)
+    result = newJBool(true)
+    return
   if token == "false":
-    return newJBool(false)
+    result = newJBool(false)
+    return
   try:
     i64 = parseBiggestInt(token)
-    return newJInt(i64)
+    result = newJInt(i64)
+    return
   except ValueError:
     discard
   try:
     f64 = parseFloat(token)
-    return newJFloat(f64)
+    result = newJFloat(f64)
+    return
   except ValueError:
     discard
   raise newException(ValueError, "unsupported TOML scalar: " & token)
 
-proc parseTomlValueRaw(raw: string; pos: var int): JsonNode =
+proc parseTomlValueRaw(raw: string; pos: var int): JsonNode {.role: parser.} =
   skipTomlWhitespace(raw, pos)
   if pos >= raw.len:
     raise newException(ValueError, "missing TOML value")
@@ -437,7 +447,7 @@ proc parseTomlValueRaw(raw: string; pos: var int): JsonNode =
   else:
     result = parseTomlScalar(raw, pos)
 
-proc parseTomlValue(raw: string): JsonNode =
+proc parseTomlValue(raw: string): JsonNode {.role: parser.} =
   var
     pos: int = 0
   result = parseTomlValueRaw(raw, pos)
@@ -445,7 +455,7 @@ proc parseTomlValue(raw: string): JsonNode =
   if pos < raw.len:
     raise newException(ValueError, "unexpected trailing TOML value content")
 
-proc splitTomlKeyValue(raw: string): tuple[ok: bool, key: string, value: string] =
+proc splitTomlKeyValue(raw: string): tuple[ok: bool, key: string, value: string] {.role: parser.} =
   var
     i: int = 0
     inDouble: bool = false
@@ -453,7 +463,8 @@ proc splitTomlKeyValue(raw: string): tuple[ok: bool, key: string, value: string]
     escapeNext: bool = false
     line: string = stripTomlComment(raw).strip()
   if line.len == 0:
-    return (false, "", "")
+    result = (false, "", "")
+    return
   i = 0
   while i < line.len:
     if escapeNext:
@@ -477,13 +488,14 @@ proc splitTomlKeyValue(raw: string): tuple[ok: bool, key: string, value: string]
     elif line[i] == '\'':
       inSingle = true
     elif line[i] == '=':
-      return (true, line[0 ..< i].strip(), line[i + 1 .. ^1].strip())
+      result = (true, line[0 ..< i].strip(), line[i + 1 .. ^1].strip())
+      return
     i = i + 1
   if inDouble or inSingle or escapeNext:
     raise newException(ValueError, "unterminated TOML key/value line")
   result = (false, "", "")
 
-proc parseTomlNode*(raw: string): JsonNode =
+proc parseTomlNode*(raw: string): JsonNode {.role: parser.} =
   var
     root: JsonNode = newJObject()
     cur: JsonNode = root
@@ -492,7 +504,7 @@ proc parseTomlNode*(raw: string): JsonNode =
     line: string = ""
     body: string = ""
     parts: seq[string] = @[]
-    kv: tuple[ok: bool, key: string, value: string]
+    kv: tuple[ok: bool, key: string, value: string] = (false, "", "")
   i = 0
   while i < lines.len:
     line = stripTomlComment(lines[i]).strip()
@@ -519,19 +531,21 @@ proc parseTomlNode*(raw: string): JsonNode =
     i = i + 1
   result = root
 
-proc isTomlArrayOfTables(n: JsonNode): bool =
+proc isTomlArrayOfTables(n: JsonNode): bool {.role: parser.} =
   var
     i: int = 0
+  result = false
   if n.kind != JArray or n.len == 0:
-    return false
+    return
   i = 0
   while i < n.len:
     if n[i].kind != JObject:
-      return false
+      result = false
+      return
     i = i + 1
   result = true
 
-proc renderTomlValue(n: JsonNode): string =
+proc renderTomlValue(n: JsonNode): string {.role: helper.} =
   var
     i: int = 0
     parts: seq[string] = @[]
@@ -561,13 +575,13 @@ proc renderTomlValue(n: JsonNode): string =
     raise newException(ValueError, "null values are not supported in TOML config output")
 
 proc emitTomlObject(path: seq[string]; node: JsonNode; lines: var seq[string];
-    emitHeader: bool)
+    emitHeader: bool): void {.role: helper.}
 
-proc appendBlankLine(lines: var seq[string]) =
+proc appendBlankLine(lines: var seq[string]): void {.role: helper.} =
   if lines.len > 0 and lines[^1].len > 0:
     lines.add("")
 
-proc emitTomlArrayTable(path: seq[string]; node: JsonNode; lines: var seq[string]) =
+proc emitTomlArrayTable(path: seq[string]; node: JsonNode; lines: var seq[string]): void {.role: helper.} =
   var
     i: int = 0
   i = 0
@@ -578,7 +592,7 @@ proc emitTomlArrayTable(path: seq[string]; node: JsonNode; lines: var seq[string
     i = i + 1
 
 proc emitTomlObject(path: seq[string]; node: JsonNode; lines: var seq[string];
-    emitHeader: bool) =
+    emitHeader: bool): void {.role: helper.} =
   var
     scalarKeys: seq[string] = @[]
     objectKeys: seq[string] = @[]
@@ -602,15 +616,16 @@ proc emitTomlObject(path: seq[string]; node: JsonNode; lines: var seq[string];
   for key in arrayTableKeys:
     emitTomlArrayTable(path & @[key], node[key], lines)
 
-proc renderTomlNode*(node: JsonNode): string =
+proc renderTomlNode*(node: JsonNode): string {.role: helper.} =
   var
     lines: seq[string] = @[]
   emitTomlObject(@[], node, lines, false)
   if lines.len == 0:
-    return ""
+    result = ""
+    return
   result = lines.join("\n") & "\n"
 
-proc parseConfigText*(raw: string; format: ConfigFormat): JsonNode =
+proc parseConfigText*(raw: string; format: ConfigFormat): JsonNode {.role: orchestrator.} =
   case format
   of cfgJson:
     assertNoDuplicateJsonKeys(raw, "config JSON")
@@ -618,21 +633,21 @@ proc parseConfigText*(raw: string; format: ConfigFormat): JsonNode =
   of cfgToml:
     result = parseTomlNode(raw)
 
-proc parseConfigText*(raw: string; p: string): JsonNode =
+proc parseConfigText*(raw: string; p: string): JsonNode {.role: orchestrator.} =
   result = parseConfigText(raw, detectConfigFormat(p))
 
-proc renderConfigText*(node: JsonNode; format: ConfigFormat): string =
+proc renderConfigText*(node: JsonNode; format: ConfigFormat): string {.role: orchestrator.} =
   case format
   of cfgJson:
     result = $node
   of cfgToml:
     result = renderTomlNode(node)
 
-proc renderConfigText*(node: JsonNode; p: string): string =
+proc renderConfigText*(node: JsonNode; p: string): string {.role: orchestrator.} =
   result = renderConfigText(node, detectConfigFormat(p))
 
-proc readConfigNode*(p: string): JsonNode =
+proc readConfigNode*(p: string): JsonNode {.role: dataFetcher.} =
   result = parseConfigText(readFile(p), p)
 
-proc writeConfigNode*(p: string; node: JsonNode) =
+proc writeConfigNode*(p: string; node: JsonNode): void {.role: dataWriter.} =
   writeFile(p, renderConfigText(node, p))

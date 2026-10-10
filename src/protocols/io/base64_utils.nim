@@ -5,14 +5,16 @@
 # ===========================================
 
 import std/base64
+import runePragmas
 import ./byte_utils
 
-proc toBase64*(value: ByteSeq): string =
+proc toBase64*(value: ByteSeq): string {.role: helper.} =
   ## Encode a byte sequence as base64 text.
   result = encode(value)
 
-proc fromBase64*(value: string): ByteSeq =
+proc fromBase64*(value: string): ByteSeq {.role: helper.} =
   ## Decode base64 text into a byte sequence.
   if value.len == 0:
-    return @[]
-  result = stringToBytes(decode(value))
+    result = @[]
+  else:
+    result = stringToBytes(decode(value))

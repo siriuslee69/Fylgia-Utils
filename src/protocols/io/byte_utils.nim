@@ -5,11 +5,12 @@
 # ===========================================
 
 import std/strutils
+import runePragmas
 
 type
   ByteSeq* = seq[byte]
 
-proc stringToBytes*(value: string): ByteSeq =
+proc stringToBytes*(value: string): ByteSeq {.role: helper.} =
   ## Convert a string to raw bytes without encoding changes.
   var
     bs: ByteSeq = @[]
@@ -21,7 +22,7 @@ proc stringToBytes*(value: string): ByteSeq =
     i = i + 1
   result = bs
 
-proc bytesToString*(value: ByteSeq): string =
+proc bytesToString*(value: ByteSeq): string {.role: helper.} =
   ## Convert raw bytes into a string without decoding changes.
   var
     s: string = ""
@@ -33,7 +34,7 @@ proc bytesToString*(value: ByteSeq): string =
     i = i + 1
   result = s
 
-proc copyBytes*(value: ByteSeq): ByteSeq =
+proc copyBytes*(value: ByteSeq): ByteSeq {.role: helper.} =
   ## Return a shallow copy of a byte sequence.
   var
     outSeq: ByteSeq = @[]
@@ -45,12 +46,14 @@ proc copyBytes*(value: ByteSeq): ByteSeq =
     i = i + 1
   result = outSeq
 
-proc splitLinesBytes*(value: ByteSeq): seq[string] =
+proc splitLinesBytes*(value: ByteSeq): seq[string] {.role: parser.} =
   ## Convert bytes to string and split into trimmed lines.
-  let s0 = bytesToString(value)
+  var
+    s0: string = ""
+  s0 = bytesToString(value)
   result = s0.splitLines
 
-proc appendU16Le*(bs: var ByteSeq, v: uint16) =
+proc appendU16Le*(bs: var ByteSeq, v: uint16): void {.role: helper.} =
   ## Append a uint16 in little-endian order.
   var
     b0: uint8 = 0
@@ -60,7 +63,7 @@ proc appendU16Le*(bs: var ByteSeq, v: uint16) =
   bs.add(b0)
   bs.add(b1)
 
-proc appendU32Le*(bs: var ByteSeq, v: uint32) =
+proc appendU32Le*(bs: var ByteSeq, v: uint32): void {.role: helper.} =
   ## Append a uint32 in little-endian order.
   var
     b0: uint8 = 0
@@ -76,7 +79,7 @@ proc appendU32Le*(bs: var ByteSeq, v: uint32) =
   bs.add(b2)
   bs.add(b3)
 
-proc appendU64Le*(bs: var ByteSeq, v: uint64) =
+proc appendU64Le*(bs: var ByteSeq, v: uint64): void {.role: helper.} =
   ## Append a uint64 in little-endian order.
   var
     t: uint64 = v
@@ -86,7 +89,7 @@ proc appendU64Le*(bs: var ByteSeq, v: uint64) =
     t = t shr 8
     shift = shift + 8
 
-proc appendBytes*(bs: var ByteSeq, A: openArray[byte]) =
+proc appendBytes*(bs: var ByteSeq, A: openArray[byte]): void {.role: helper.} =
   ## Append raw bytes from an open array.
   var
     i: int = 0
@@ -94,7 +97,7 @@ proc appendBytes*(bs: var ByteSeq, A: openArray[byte]) =
     bs.add(A[i])
     i = i + 1
 
-proc appendLabel*(bs: var ByteSeq, s: string) =
+proc appendLabel*(bs: var ByteSeq, s: string): void {.role: helper.} =
   ## Append an ASCII label prefixed by its uint32 little-endian length.
   var
     i: int = 0

@@ -5,9 +5,10 @@
 # =========================================
 
 import std/[json, os, unittest]
+import runePragmas
 import ../../src/fylgia_utils
 
-proc tempConfigPath(name: string): string =
+proc tempConfigPath(name: string): string {.role: helper.} =
   result = joinPath(getTempDir(), name)
 
 suite "Fylgia config io":

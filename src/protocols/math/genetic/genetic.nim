@@ -1,28 +1,30 @@
-type 
+import runePragmas
+
+type
     Op*[T, Q : SomeNumber] = tuple #T is the input type and Q the return type of each proc/op
         n: string #name
         w: int    #weight
-        p: proc(x, y: T): Q 
+        p: proc(x, y: T): Q
 
 
 proc add*[T, Q: SomeNumber](operations: var seq[Op[T, Q]],
-    op: proc(x, y: T): Q, name: string, weight: int) =
+    op: proc(x, y: T): Q, name: string, weight: int): void {.role: configurator.} =
     operations.add((name, weight, op))
 
-const 
+const
     ops*: array[8, Op[int, int]] = [
-        ( "and", 1, proc(x,y: int): int = x and y),
-        ( "xor", 1, proc(x,y: int): int = x xor y),
-        ( "or", 1, proc(x,y: int): int = x or y),
-        ( "not", 1, proc(x,y: int): int = not x),
-        ( "sub", 1, proc(x,y: int): int = x - y ),
-        ( "add", 1, proc(x,y: int): int = x + y),
-        ( "mul", 1, proc(x,y: int): int = x * y),
-        ( "div", 1, proc(x,y: int): int = 
-            if y == 0: 
-                return x
-            else: 
-                return x div y)
+        ( "and", 1, proc(x,y: int): int {.role: math.} = result = x and y),
+        ( "xor", 1, proc(x,y: int): int {.role: math.} = result = x xor y),
+        ( "or", 1, proc(x,y: int): int {.role: math.} = result = x or y),
+        ( "not", 1, proc(x,y: int): int {.role: math.} = result = not x),
+        ( "sub", 1, proc(x,y: int): int {.role: math.} = result = x - y ),
+        ( "add", 1, proc(x,y: int): int {.role: math.} = result = x + y),
+        ( "mul", 1, proc(x,y: int): int {.role: math.} = result = x * y),
+        ( "div", 1, proc(x,y: int): int {.role: math.} =
+            if y == 0:
+                result = x
+            else:
+                result = x div y)
         ]
 
 when defined(test):

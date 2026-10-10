@@ -3,13 +3,14 @@
 ## --------------------------------------------
 
 import std/[strutils]
+import runePragmas
 
 import ./types
 
-proc isIdentChar(c: char): bool =
+proc isIdentChar(c: char): bool {.role: helper.} =
   result = c.isAlphaNumeric or c in {'_', '-', '.', '/', '\\', ':'}
 
-proc decodeQuoted(source: string, startIdx: int): tuple[ok: bool, value: string, nextIdx: int, err: string] =
+proc decodeQuoted(source: string, startIdx: int): tuple[ok: bool, value: string, nextIdx: int, err: string] {.role: parser.} =
   var
     i: int = startIdx + 1
     escaped: bool = false
@@ -33,18 +34,19 @@ proc decodeQuoted(source: string, startIdx: int): tuple[ok: bool, value: string,
       i.inc
       continue
     if source[i] == '"':
-      return (true, buffer, i + 1, "")
+      result = (true, buffer, i + 1, "")
+      return
     buffer.add(source[i])
     i.inc
   result = (false, "", source.len, "unterminated quoted text query term")
 
-proc tokenizeTextQuery*(source: string): tuple[ok: bool, tokens: seq[TextQueryToken], err: string] =
+proc tokenizeTextQuery*(source: string): tuple[ok: bool, tokens: seq[TextQueryToken], err: string] {.role: parser.} =
   var
     i: int = 0
-    start: int
-    raw: string
-    quoted: tuple[ok: bool, value: string, nextIdx: int, err: string]
-    upper: string
+    start: int = 0
+    raw: string = ""
+    quoted: tuple[ok: bool, value: string, nextIdx: int, err: string] = (false, "", 0, "")
+    upper: string = ""
   while i < source.len:
     if source[i].isSpaceAscii:
       i.inc
@@ -59,12 +61,14 @@ proc tokenizeTextQuery*(source: string): tuple[ok: bool, tokens: seq[TextQueryTo
     of '"':
       quoted = decodeQuoted(source, i)
       if not quoted.ok:
-        return (false, @[], quoted.err)
+        result = (false, @[], quoted.err)
+        return
       result.tokens.add(TextQueryToken(kind: tqtTerm, value: quoted.value, offset: i))
       i = quoted.nextIdx
     else:
       if not isIdentChar(source[i]):
-        return (false, @[], "unexpected character in text query at offset " & $i & ": " & $source[i])
+        result = (false, @[], "unexpected character in text query at offset " & $i & ": " & $source[i])
+        return
       start = i
       while i < source.len and isIdentChar(source[i]):
         i.inc
@@ -82,14 +86,15 @@ proc tokenizeTextQuery*(source: string): tuple[ok: bool, tokens: seq[TextQueryTo
   result.tokens.add(TextQueryToken(kind: tqtEof, value: "", offset: source.len))
   result.ok = true
 
-proc parseOrExpr(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string]
-proc parsePrimary(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string]
+proc parseOrExpr(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] {.role: parser.}
+proc parsePrimary(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] {.role: parser.}
 
-proc parsePrimary(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] =
+proc parsePrimary(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] {.role: parser.} =
   var
-    inner: tuple[ok: bool, node: TextQueryNode, err: string]
+    inner: tuple[ok: bool, node: TextQueryNode, err: string] = (false, nil, "")
   if pos >= tokens.len:
-    return (false, nil, "unexpected end of text query")
+    result = (false, nil, "unexpected end of text query")
+    return
   case tokens[pos].kind
   of tqtTerm:
     result = (true, TextQueryNode(kind: tqnTerm, term: tokens[pos].value), "")
@@ -98,73 +103,82 @@ proc parsePrimary(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, no
     pos.inc
     inner = parseOrExpr(tokens, pos)
     if not inner.ok:
-      return inner
+      result = inner
+      return
     if pos >= tokens.len or tokens[pos].kind != tqtRParen:
-      return (false, nil, "missing closing ')' in text query")
+      result = (false, nil, "missing closing ')' in text query")
+      return
     pos.inc
     result = inner
   of tqtNot:
     pos.inc
     inner = parsePrimary(tokens, pos)
     if not inner.ok:
-      return inner
+      result = inner
+      return
     result = (true, TextQueryNode(kind: tqnNot, left: inner.node), "")
   else:
     result = (false, nil, "unexpected token in text query near offset " & $tokens[pos].offset)
 
-proc parseFactor(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] =
+proc parseFactor(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] {.role: parser.} =
   result = parsePrimary(tokens, pos)
 
-proc parseAndExpr(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] =
+proc parseAndExpr(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] {.role: parser.} =
   var
-    rhs: tuple[ok: bool, node: TextQueryNode, err: string]
+    rhs: tuple[ok: bool, node: TextQueryNode, err: string] = (false, nil, "")
   result = parseFactor(tokens, pos)
   if not result.ok:
-    return result
+    return
   while pos < tokens.len and tokens[pos].kind == tqtAnd:
     pos.inc
     rhs = parseFactor(tokens, pos)
     if not rhs.ok:
-      return rhs
+      result = rhs
+      return
     result.node = TextQueryNode(kind: tqnAnd, left: result.node, right: rhs.node)
 
-proc parseOrExpr(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] =
+proc parseOrExpr(tokens: seq[TextQueryToken], pos: var int): tuple[ok: bool, node: TextQueryNode, err: string] {.role: parser.} =
   var
-    rhs: tuple[ok: bool, node: TextQueryNode, err: string]
+    rhs: tuple[ok: bool, node: TextQueryNode, err: string] = (false, nil, "")
   result = parseAndExpr(tokens, pos)
   if not result.ok:
-    return result
+    return
   while pos < tokens.len and tokens[pos].kind == tqtOr:
     pos.inc
     rhs = parseAndExpr(tokens, pos)
     if not rhs.ok:
-      return rhs
+      result = rhs
+      return
     result.node = TextQueryNode(kind: tqnOr, left: result.node, right: rhs.node)
 
-proc parseTextQuery*(source: string): tuple[ok: bool, query: TextQuery, err: string] =
+proc parseTextQuery*(source: string): tuple[ok: bool, query: TextQuery, err: string] {.role: truthBuilder.} =
   var
-    tokenized: tuple[ok: bool, tokens: seq[TextQueryToken], err: string]
+    tokenized: tuple[ok: bool, tokens: seq[TextQueryToken], err: string] = (false, @[], "")
     pos: int = 0
-    parsed: tuple[ok: bool, node: TextQueryNode, err: string]
+    parsed: tuple[ok: bool, node: TextQueryNode, err: string] = (false, nil, "")
   tokenized = tokenizeTextQuery(source)
   if not tokenized.ok:
-    return (false, TextQuery(), tokenized.err)
+    result = (false, TextQuery(), tokenized.err)
+    return
   parsed = parseOrExpr(tokenized.tokens, pos)
   if not parsed.ok:
-    return (false, TextQuery(), parsed.err)
+    result = (false, TextQuery(), parsed.err)
+    return
   if pos >= tokenized.tokens.len or tokenized.tokens[pos].kind != tqtEof:
-    return (false, TextQuery(), "unexpected trailing token in text query near offset " &
+    result = (false, TextQuery(), "unexpected trailing token in text query near offset " &
       $tokenized.tokens[pos].offset)
+    return
   result.ok = true
   result.query.source = source
   result.query.root = parsed.node
 
-proc matchesNode(node: TextQueryNode, candidate: string, caseSensitive: bool): bool =
+proc matchesNode(node: TextQueryNode, candidate: string, caseSensitive: bool): bool {.role: actor.} =
   var
-    haystack: string
-    needle: string
+    haystack: string = ""
+    needle: string = ""
+  result = false
   if node.isNil:
-    return false
+    return
   case node.kind
   of tqnTerm:
     haystack = candidate
@@ -183,12 +197,15 @@ proc matchesNode(node: TextQueryNode, candidate: string, caseSensitive: bool): b
     result = not matchesNode(node.left, candidate, caseSensitive)
 
 proc matchesTextQuery*(query: TextQuery, candidate: string,
-    caseSensitive: bool = false): bool =
+    caseSensitive: bool = false): bool {.role: actor.} =
   result = matchesNode(query.root, candidate, caseSensitive)
 
 proc matchesTextQueryString*(source: string, candidate: string,
-    caseSensitive: bool = false): tuple[ok: bool, matches: bool, err: string] =
-  let parsed = parseTextQuery(source)
+    caseSensitive: bool = false): tuple[ok: bool, matches: bool, err: string] {.role: orchestrator.} =
+  var
+    parsed: tuple[ok: bool, query: TextQuery, err: string] = (false, TextQuery(), "")
+  parsed = parseTextQuery(source)
   if not parsed.ok:
-    return (false, false, parsed.err)
+    result = (false, false, parsed.err)
+    return
   result = (true, matchesTextQuery(parsed.query, candidate, caseSensitive), "")

@@ -1,10 +1,11 @@
 import strutils
+import runePragmas
 
-proc isPositive*(str: string): bool =
+proc isPositive*(str: string): bool {.role: parser.} =
     ## Returns true for positive sounding strings, false otherwise.
-    let 
+    var
         conv_str: string = str.strip().toLowerAscii()
-    if(conv_str == "yes" or 
+    if(conv_str == "yes" or
         conv_str == "y" or
         conv_str == "+" or
         conv_str == "ja" or
@@ -12,13 +13,13 @@ proc isPositive*(str: string): bool =
         conv_str == "yarp" or
         conv_str == "ye" or
         conv_str == "yep"):
-        return true
-    else: 
-        return false
+        result = true
+    else:
+        result = false
 
 
 when defined(test):
-    
+
     import std/unittest, ../debugging/checks
 
     suite "Responses":
@@ -31,6 +32,6 @@ when defined(test):
                 check word.isPositive() == true
             for word in ["yes \n q", "yes \n _", "yes_ "]: #make sure only whitespace is removed
                 check word.isPositive() == false
-            for word in ["no", "nope", "lel", "69", "", " "]: 
+            for word in ["no", "nope", "lel", "69", "", " "]:
                 check word.isPositive() == false
-            
+

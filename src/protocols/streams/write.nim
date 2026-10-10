@@ -1,4 +1,6 @@
-proc toByteSeqLE*(x: uint64): seq[uint8] =
+import runePragmas
+
+proc toByteSeqLE*(x: uint64): seq[uint8] {.role: helper.} =
     ## Converts a bigger uint to a byteseq in LE order
     if x < 255'u64:
         result.add( cast[uint8](x) )
@@ -19,7 +21,7 @@ proc toByteSeqLE*(x: uint64): seq[uint8] =
 
 
 when defined(test):
-    
+
     import std/unittest, ../debugging/checks
 
     suite "io":

@@ -1,13 +1,14 @@
 # Progress
 
-Commit Message: Take the generic nimble tasks from Nimble-Tasks
+Commit Message: Declare a role on every routine and make every result explicit
 
 Features (Planned):
-- Declare a `role` on every routine (import `runePragmas` from the shared
-  Rune-Pragmas repo); none of the modules carry one yet.
 - More reusable validation presets for additional app types.
 
 Features (Done):
+- Every routine declares a `role` (from the shared Rune-Pragmas submodule),
+  every routine has a written return type, and every value is assigned to
+  `result` instead of being returned implicitly.
 - Helpers for bytes/base64, time, ids, JSON payloads and text validation.
 - Generic limit helpers for strings and ranges.
 - Config TOML reader/writer that refuses ambiguous input.
@@ -28,3 +29,16 @@ Notes:
   and ran `nimble test`, `nimble smoke` and `nimble runModuleTests` - all pass.
 - Commit history older than one month was squashed into a single
   starting commit on 2026-09-23.
+- Roles: added `Rune-Pragmas` as `submodules/Rune-Pragmas` and put its
+  `meta/` folder on the path from `config.nims`. Every proc and func got a
+  `{.role: ...}`. Procs with no return type got `: void`. `return value`
+  became `result = value` (a bare `return` is kept for early exits).
+  Small `let`s in the procs touched became `var`s with defaults.
+- Still open (found by Otter, not part of this change): nesting depth
+  in `vector_space`, `config_io` and `ops`; file layout in `config_io`;
+  `let` and `var` lines inside `test` bodies; a placeholder flag on
+  `nextCounter` in `id_utils`. That routine is a real counter, so the flag
+  is probably wrong, but the cause is not checked yet.
+- Check: `nimble test` and `nimble runModuleTests` both pass (18 inline
+  checks). Consumers of this library now need `Rune-Pragmas` on the path,
+  which the submodule provides.

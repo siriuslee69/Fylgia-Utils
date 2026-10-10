@@ -3,9 +3,10 @@
 
 import std/unittest
 
+import runePragmas
 import ../../src/protocols/math/vector_space
 
-proc sampleSpace(): VectorSpace =
+proc sampleSpace(): VectorSpace {.role: helper.} =
   ## Five routines measured three ways. `a` and `b` are twins, `c` and
   ## `d` are a second pair, and `e` is unlike anything else.
   ##
