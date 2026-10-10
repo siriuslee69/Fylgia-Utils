@@ -4,7 +4,7 @@
 # | Parse/render JSON and TOML config root nodes.  |
 # ==================================================
 
-import std/[json, os, parsejson, sets, streams, strutils]
+import std/[json, os, parsejson, sets, streams, strutils, unicode]
 
 type
   ConfigFormat* = enum
@@ -21,7 +21,7 @@ proc jsonPathChild(path, key: string): string =
 proc assertNoDuplicateJsonKeys(rawData: string; sourcePath: string) =
   ## Reject duplicate JSON object keys before std/json overwrites them.
   var
-    parser: JsonParser
+    parser: JsonParser = default(JsonParser)
   open(parser, newStringStream(rawData), sourcePath)
   defer:
     close(parser)
@@ -123,7 +123,7 @@ proc quoteTomlString(v: string): string =
 proc isBareTomlKeyPart(v: string): bool =
   var
     i: int = 0
-    ch: char
+    ch: char = '\0'
   if v.len == 0:
     return false
   i = 0
@@ -191,7 +191,7 @@ proc splitDottedTomlPath(raw: string): seq[string] =
     inDouble: bool = false
     inSingle: bool = false
     escapeNext: bool = false
-    part: string
+    part: string = ""
     t: string = raw.strip()
   if t.len == 0:
     raise newException(ValueError, "empty TOML dotted path")
@@ -244,7 +244,7 @@ proc ensureTomlTable(root: JsonNode; parts: seq[string];
   var
     cur: JsonNode = root
     i: int = 0
-    key: string
+    key: string = ""
   if root.kind != JObject:
     raise newException(ValueError, "TOML root must be an object")
   if parts.len == 0:
@@ -277,7 +277,7 @@ proc assignTomlValue(cur: JsonNode; parts: seq[string]; value: JsonNode) =
   var
     node: JsonNode = cur
     i: int = 0
-    key: string
+    key: string = ""
   if parts.len == 0:
     raise newException(ValueError, "empty TOML key path")
   i = 0
@@ -305,10 +305,29 @@ proc skipTomlWhitespace(raw: string; pos: var int) =
   while pos < raw.len and raw[pos] in {' ', '\t', '\r', '\n'}:
     pos = pos + 1
 
+proc parseTomlUnicodeEscape(raw: string; pos: var int; digits: int): string =
+  ## raw/pos: `pos` sits on the `u` or `U` of `\uXXXX` / `\UXXXXXXXX`.
+  ## digits: 4 or 8. Returns the code point as UTF-8 and leaves `pos` on
+  ## the last hex digit, the way a one-letter escape leaves it on its letter.
+  ##
+  ##   "é"  ->  "é"   (two bytes: C3 A9)
+  var
+    code: int = 0
+  if pos + digits >= raw.len:
+    raise newException(ValueError, "TOML \\u escape needs " & $digits & " hex digits")
+  try:
+    code = parseHexInt(raw[pos + 1 .. pos + digits])
+  except ValueError:
+    raise newException(ValueError, "TOML \\u escape is not hex: " & raw[pos + 1 .. pos + digits])
+  if code > 0x10FFFF or (code >= 0xD800 and code <= 0xDFFF):
+    raise newException(ValueError, "TOML \\u escape is not a Unicode scalar value")
+  pos = pos + digits
+  result = toUTF8(Rune(code))
+
 proc parseTomlStringLiteral(raw: string; pos: var int): string =
   var
-    quote: char
-    ch: char
+    quote: char = '\0'
+    ch: char = '\0'
   if pos >= raw.len or (raw[pos] != '"' and raw[pos] != '\''):
     raise newException(ValueError, "expected TOML string")
   quote = raw[pos]
@@ -334,6 +353,12 @@ proc parseTomlStringLiteral(raw: string; pos: var int): string =
         result.add('\r')
       of 't':
         result.add('\t')
+      of 'e':
+        result.add('\e')
+      of 'u':
+        result.add(parseTomlUnicodeEscape(raw, pos, 4))
+      of 'U':
+        result.add(parseTomlUnicodeEscape(raw, pos, 8))
       else:
         result.add(raw[pos])
       pos = pos + 1
@@ -349,7 +374,7 @@ proc parseTomlValueRaw(raw: string; pos: var int): JsonNode
 
 proc parseTomlArray(raw: string; pos: var int): JsonNode =
   var
-    value: JsonNode
+    value: JsonNode = nil
   if pos >= raw.len or raw[pos] != '[':
     raise newException(ValueError, "expected TOML array")
   result = newJArray()
@@ -377,9 +402,9 @@ proc parseTomlArray(raw: string; pos: var int): JsonNode =
 proc parseTomlScalar(raw: string; pos: var int): JsonNode =
   var
     start: int = pos
-    token: string
-    i64: BiggestInt
-    f64: float
+    token: string = ""
+    i64: BiggestInt = 0
+    f64: float = 0.0
   while pos < raw.len and raw[pos] notin {' ', '\t', '\r', '\n', ',', ']'}:
     pos = pos + 1
   token = raw[start ..< pos].strip()
@@ -464,9 +489,9 @@ proc parseTomlNode*(raw: string): JsonNode =
     cur: JsonNode = root
     lines: seq[string] = raw.splitLines()
     i: int = 0
-    line: string
-    body: string
-    parts: seq[string]
+    line: string = ""
+    body: string = ""
+    parts: seq[string] = @[]
     kv: tuple[ok: bool, key: string, value: string]
   i = 0
   while i < lines.len:

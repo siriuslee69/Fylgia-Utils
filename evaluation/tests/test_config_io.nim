@@ -103,3 +103,21 @@ title = "second"
   test "JSON config parser rejects duplicate keys instead of overwriting":
     expect ValueError:
       discard parseConfigText("""{"mode":"first","mode":"second"}""", cfgJson)
+
+  # {.testKind: tkBugfix.}
+  test "TOML parser decodes \\u and \\U escapes to UTF-8":
+    var doc: JsonNode = parseTomlNode("""
+a = "caf\u00e9"
+b = "\u0000\u00ff"
+c = "\U0001F33F"
+""")
+    check doc["a"].getStr() == "café"
+    check doc["b"].getStr() == "\x00\xC3\xBF"
+    check doc["c"].getStr() == "🌿"
+
+  # {.testKind: tkEdgeCase.}
+  test "TOML parser refuses a broken \\u escape":
+    expect ValueError:
+      discard parseTomlNode("a = \"\\u00g1\"\n")
+    expect ValueError:
+      discard parseTomlNode("a = \"\\uD800\"\n")
