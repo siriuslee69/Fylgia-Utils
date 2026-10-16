@@ -1,11 +1,15 @@
 # Progress
 
-Commit Message: Declare a role on every routine and make every result explicit
+Commit Message: auto_thread: parallelMap, parallelRange and `together` sharing one thread budget
 
 Features (Planned):
 - More reusable validation presets for additional app types.
 
 Features (Done):
+- `auto_thread`: `parallelMap`, `parallelRange` and the `together:` block,
+  all drawing on one shared thread budget (FYLGIA_THREADS, setThreadLimit,
+  -d:fylgiaNoThreads). Failures come home as `ThreadJobError`. Tested
+  threaded, serial, with --threads:off and under -fsanitize=thread.
 - Every routine declares a `role` (from the shared Rune-Pragmas submodule),
   every routine has a written return type, and every value is assigned to
   `result` instead of being returned implicitly.

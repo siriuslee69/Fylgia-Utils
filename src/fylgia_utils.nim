@@ -19,6 +19,7 @@ import protocols/validation/text_profiles
 import protocols/validation/limit_defaults
 import protocols/containers/circ_seq
 import protocols/math/vector_space
+import protocols/threads/auto_thread
 
 export byte_utils
 export base64_utils
@@ -33,3 +34,4 @@ export text_profiles
 export limit_defaults
 export circ_seq
 export vector_space
+export auto_thread

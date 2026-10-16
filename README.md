@@ -20,6 +20,56 @@ FIFO sequence for inboxes and queues. It supports `push`, `pop`, runtime
 capacity changes, and normal `queue[0]` array notation for logical reads
 without shifting stored values on every pop.
 
+## ⟢ Auto threader 🧵
+
+`src/protocols/threads/auto_thread.nim` spreads independent work over
+every core. There are three ways in:
+
+```nim
+import fylgia_utils/protocols/threads/auto_thread   # or the umbrella module
+
+proc lineCount(p: string): int = readFile(p).countLines()
+
+var
+  n: seq[int] = parallelMap(@["a.nim", "b.nim", "c.nim"], lineCount)
+    # one call per item, answers in the items' order
+
+proc biggerLater(A: seq[int], i: int): int = ...      # row i against i+1 ..
+var
+  m: seq[int] = parallelRange(A.len, A, biggerLater)
+    # one call per number 0 ..< n, every call handed the same A
+
+together:                                             # each line at once
+  report.shape = shapeReport(src, dir)
+  report.secrets = secretsOf(dir, files)
+```
+
+Def. 1: the *budget* is how many threads may work at once, the calling
+thread included. Every call shares it, so nested calls cannot multiply:
+
+```
+budget 8 ── together (3 lines)    takes 2 extra  -> 5 left
+            └─ parallelMap         takes up to 5  -> 0 left
+               └─ parallelMap      takes 0, runs on the thread it is on
+```
+
+```
+setting              effect
+───────────────────  ───────────────────────────────────────────
+(nothing)            one thread per processor core
+FYLGIA_THREADS=4     at most 4 at once (read once, at first use)
+setThreadLimit(1)    everything one after another, from code
+-d:fylgiaNoThreads   no thread is ever started (small boards)
+--threads:off        the same, picked automatically
+```
+
+⚠ The routine handed in must only *read* what it is given and write only
+its own answer. Reading one `seq` from many threads is fine; writing one
+shared variable, or sharing a `ref`, is not. A job that raises does not
+stop the others; the first failure comes back on the calling thread as a
+`ThreadJobError` that names the job (`job 2: ...`, or the line's own text
+inside `together`).
+
 ## Layout
 
 The old `level1` / `level2` buckets have been removed. Shared modules now live
