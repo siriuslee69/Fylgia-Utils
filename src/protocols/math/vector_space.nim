@@ -34,6 +34,7 @@
 
 import std/[algorithm, math, strutils]
 import runePragmas
+import ../threads/auto_thread
 
 type
   FeatureVector* = object
@@ -374,6 +375,33 @@ proc flatten*(S: VectorSpace): seq[array[2, float]] {.role: math.} =
     result.add([clamp(x, 0.0, 1.0), clamp(y, 0.0, 1.0)])
     i = i + 1
 
+proc reachOf(R: tuple[S: ptr VectorSpace, radius: float], i: int): seq[int]
+    {.role: math.} =
+  ## R <- the room and how far a clump reaches   i <- one thing.
+  ## Every thing within reach of thing i, itself included, in order.
+  var
+    j: int = 0
+  result = @[]
+  while j < R.S.points.len:
+    if distance(R.S.points[i], R.S.points[j]) <= R.radius:
+      result.add(j)
+    j = j + 1
+
+proc busiestFree(N: seq[seq[int]], used: seq[bool], minMembers: int): int
+    {.role: parser.} =
+  ## N <- who is within reach of whom   used <- already in a clump
+  ## The free thing with the most within reach, or -1 when none has at
+  ## least `minMembers`. A tie goes to the earlier thing.
+  var
+    bestN: int = minMembers - 1
+    i: int = 0
+  result = -1
+  while i < N.len:
+    if not used[i] and N[i].len > bestN:
+      bestN = N[i].len
+      result = i
+    i = i + 1
+
 proc cloudNodes*(S: VectorSpace, radius: float = 0.28,
     minMembers: int = 2): seq[CloudNode] {.role: actor.} =
   ## S <- the room   radius <- how far a clump reaches
@@ -390,68 +418,39 @@ proc cloudNodes*(S: VectorSpace, radius: float = 0.28,
   ##            o x o          <- x belongs to A and to B
   ##             o o o
   ##          ( node B )
+  ##
+  ## Who is within reach of whom never changes, so it is worked out
+  ## once, every row on its own core, and each round only looks it up:
+  ##
+  ##   reach:  0 -> 0 3 7     1 -> 1     2 -> 2 3 ...
+  ##   round:  busiest free thing -> its reach is the clump
   var
     flat: seq[array[2, float]] = @[]
+    reach: seq[seq[int]] = @[]
     used: seq[bool] = @[]
-    counts: seq[int] = @[]
-    members: seq[int] = @[]
-    centres: seq[int] = @[]
     best: int = 0
-    bestN: int = 0
-    i: int = 0
-    j: int = 0
-    rounds: int = 0
   result = @[]
   if S.points.len == 0:
     return
   flat = flatten(S)
-  while i < S.points.len:
-    used.add(false)
-    counts.add(0)
-    i = i + 1
-  rounds = 0
-  while rounds < S.points.len:
-    i = 0
-    while i < S.points.len:
-      counts[i] = 0
-      if not used[i]:
-        j = 0
-        while j < S.points.len:
-          if distance(S.points[i], S.points[j]) <= radius:
-            counts[i] = counts[i] + 1
-          j = j + 1
-      i = i + 1
-    best = -1
-    bestN = minMembers - 1
-    i = 0
-    while i < S.points.len:
-      if counts[i] > bestN:
-        bestN = counts[i]
-        best = i
-      i = i + 1
-    if best < 0:
-      break
-    members = @[]
-    j = 0
-    while j < S.points.len:
-      if distance(S.points[best], S.points[j]) <= radius:
-        members.add(j)
-      j = j + 1
-    centres.add(best)
+  reach = parallelRange(S.points.len, (S: unsafeAddr S, radius: radius),
+    reachOf)
+  used = newSeq[bool](S.points.len)
+  best = busiestFree(reach, used, minMembers)
+  while best >= 0:
     # Everything pulled into this clump stops being a candidate for
     # *starting* another one, or the same clump would be found again
     # from its neighbour's point of view. Being pulled into a later
     # clump as a member is still allowed, which is what lets a thing
     # sit in two clumps at once.
-    for at in members:
-      used[at] = true
     result.add(CloudNode(id: "cloud-" & $result.len,
-      label: S.points[best].label, centre: centreOf(S, members),
+      label: S.points[best].label, centre: centreOf(S, reach[best]),
       memberIds: @[], x: flat[best][0], y: flat[best][1],
       radius: radius))
-    for at in members:
+    for at in reach[best]:
+      used[at] = true
       result[^1].memberIds.add(S.points[at].id)
-    rounds = rounds + 1
+    best = busiestFree(reach, used, minMembers)
 
 proc dimReport*(S: VectorSpace): seq[string] {.role: helper.} =
   ## S <- the room. One readable line per dimension saying what range

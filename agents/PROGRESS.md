@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: together: a line may read `result`, and the block works outside a routine
+Commit Message: vector_space: cloudNodes works out who is within reach once, on every core
 
 Features (Planned):
 - More reusable validation presets for additional app types.
@@ -10,6 +10,8 @@ Features (Done):
   all drawing on one shared thread budget (FYLGIA_THREADS, setThreadLimit,
   -d:fylgiaNoThreads). Failures come home as `ThreadJobError`. Tested
   threaded, serial, with --threads:off and under -fsanitize=thread.
+- `cloudNodes` works out who is within reach of whom once (one row per
+  core) instead of every round: same clumps, 3.5 s -> under 0.1 s on Tyr.
 - Every routine declares a `role` (from the shared Rune-Pragmas submodule),
   every routine has a written return type, and every value is assigned to
   `result` instead of being returned implicitly.
