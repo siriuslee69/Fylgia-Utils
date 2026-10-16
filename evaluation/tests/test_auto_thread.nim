@@ -153,3 +153,20 @@ suite "together outside a routine":
   # {.testKind: tkEdgeCase.}
   test "works where there is no result":
     check topA == 25 and topB == 36
+
+proc echoBack(x: int): string {.role: dataFetcher.} =
+  ## x: a number. Started as an outside program, from many threads.
+  result = execCmdShared("echo " & $x).output.strip()
+
+suite "outside programs":
+  # {.testKind: tkRegression.}
+  test "many threads starting programs at once all get their answer":
+    var
+      A: seq[int] = @[]
+      want: seq[string] = @[]
+      t: int = 0
+    while t < 64:
+      A.add(t)
+      want.add($t)
+      t = t + 1
+    check parallelMap(A, echoBack) == want

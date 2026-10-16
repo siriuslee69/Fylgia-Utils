@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: vector_space: cloudNodes works out who is within reach once, on every core
+Commit Message: auto_thread: execCmdShared - outside programs one at a time, because std/osproc is not safe across threads
 
 Features (Planned):
 - More reusable validation presets for additional app types.
@@ -10,6 +10,9 @@ Features (Done):
   all drawing on one shared thread budget (FYLGIA_THREADS, setThreadLimit,
   -d:fylgiaNoThreads). Failures come home as `ThreadJobError`. Tested
   threaded, serial, with --threads:off and under -fsanitize=thread.
+- `execCmdShared`: std/osproc pipes lack close-on-exec, so programs started
+  from several threads at once fail (`Bad file descriptor`) or hang; this
+  lets one through at a time.
 - `cloudNodes` works out who is within reach of whom once (one row per
   core) instead of every round: same clumps, 3.5 s -> under 0.1 s on Tyr.
 - Every routine declares a `role` (from the shared Rune-Pragmas submodule),

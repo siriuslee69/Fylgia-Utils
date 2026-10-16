@@ -70,6 +70,12 @@ stop the others; the first failure comes back on the calling thread as a
 `ThreadJobError` that names the job (`job 2: ...`, or the line's own text
 inside `together`).
 
+⚠ Never start an outside program with `execCmdEx` from inside a job:
+`std/osproc` makes its pipes without close-on-exec, and 400 `git` calls
+spread over 32 threads fail with `Bad file descriptor` or hang for good.
+`execCmdShared(command)` gives the same answer and lets one program
+through at a time; the work around it stays parallel.
+
 ## Layout
 
 The old `level1` / `level2` buckets have been removed. Shared modules now live

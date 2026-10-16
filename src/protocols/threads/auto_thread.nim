@@ -44,11 +44,18 @@
 # made for threads). The compiler is told to trust this promise, so
 # it does not check it.
 #
+# ⚠ Starting a program (git, a compiler) from two threads at once is
+# NOT safe with std/osproc: its pipes are made without close-on-exec,
+# so a program started by one thread can be handed the other thread's
+# pipe ends, and a reader then waits for an end that never comes. Run
+# outside programs through `execCmdShared` instead of `execCmdEx`; it
+# lets one through at a time, while the work around it stays parallel.
+#
 # A job that raises does not take the program down: every job still
 # runs, and the first failure is raised again on the calling thread as
 # a `ThreadJobError` naming the job.
 
-import std/[atomics, cpuinfo, macros, os, strutils]
+import std/[atomics, locks, macros, os, osproc, strutils]
 import runePragmas
 
 const
@@ -97,6 +104,10 @@ var
     ## the budget; 0 until it is first read
   busyNow: Atomic[int] = default(Atomic[int])
     ## extra threads alive right now, the callers not counted
+  processGate: Lock
+    ## held while an outside program runs; see `execCmdShared`
+
+initLock(processGate)
 
 # ---- the budget ------------------------------------------------------
 
@@ -356,3 +367,24 @@ macro together*(body: untyped): untyped {.role: orchestrator,
       var `jobs`: seq[TogetherJob] = @[]
       `lines`
       runTogether(`jobs`)
+
+# ---- outside programs ------------------------------------------------
+
+proc execCmdShared*(command: string, options: set[ProcessOption] = {
+    poStdErrToStdOut, poUsePath}, workingDir: string = ""):
+    tuple[output: string, exitCode: int] {.role: dataFetcher,
+    tag: "threads".} =
+  ## command: the whole command line   options, workingDir: as for
+  ## `execCmdEx`. The same answer `execCmdEx` gives, but only one
+  ## outside program runs at a time across every thread:
+  ##
+  ##   thread A  ── git log ──┐                 waits ── git ls-tree ──
+  ##   thread B        waits  └── git ls-tree ──┘
+  ##
+  ## std/osproc hands every pipe it makes to every program started
+  ## while that pipe is open, so two at once can leave a reader waiting
+  ## forever for the end of an answer. One at a time cannot.
+  result = (output: "", exitCode: 0)
+  {.cast(gcsafe).}:
+    withLock processGate:
+      result = execCmdEx(command, options, workingDir = workingDir)
