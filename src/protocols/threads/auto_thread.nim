@@ -104,7 +104,7 @@ var
     ## the budget; 0 until it is first read
   busyNow: Atomic[int] = default(Atomic[int])
     ## extra threads alive right now, the callers not counted
-  processGate: Lock
+  processGate: Lock = default(Lock)
     ## held while an outside program runs; see `execCmdShared`
 
 initLock(processGate)
@@ -144,7 +144,7 @@ proc reserve(k: int): int {.role: actor, tag: "threads".} =
 
 proc release(k: int) {.role: actor, tag: "threads".} =
   ## k: threads that have finished and are handed back.
-  discard busyNow.fetchSub(k)
+  busyNow -= k
 
 # ---- the engine ------------------------------------------------------
 

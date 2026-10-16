@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: auto_thread: execCmdShared - outside programs one at a time, because std/osproc is not safe across threads
+Commit Message: auto_thread: the process lock starts with a value, release reads as the step it is
 
 Features (Planned):
 - More reusable validation presets for additional app types.
