@@ -129,3 +129,27 @@ suite "together":
     except ThreadJobError as e:
       check "w = failOnThree(3)" in e.msg
     check v == 4
+
+proc chained(): tuple[a: int, b: int, c: int] {.role: orchestrator.} =
+  ## The second line reads `result.a`, set before the block began.
+  result = (a: 3, b: 0, c: 0)
+  together:
+    result.b = square(2)
+    result.c = square(result.a)
+
+suite "together and result":
+  # {.testKind: tkEdgeCase.}
+  test "a line may read result, even on another thread":
+    check chained() == (a: 3, b: 4, c: 9)
+
+var
+  topA: int = 0
+  topB: int = 0
+together:
+  topA = square(5)
+  topB = square(6)
+
+suite "together outside a routine":
+  # {.testKind: tkEdgeCase.}
+  test "works where there is no result":
+    check topA == 25 and topB == 36

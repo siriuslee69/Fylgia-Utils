@@ -265,12 +265,46 @@ proc runTogether*(J: var seq[TogetherJob]) {.role: orchestrator,
     names.add(row.name)
   raiseFirst(runIndexed(J.len, togetherStep, addr J[0]), names)
 
+proc swapResult(n: NimNode): NimNode {.compileTime, role: sanitizer,
+    tag: "threads".} =
+  ## n: the right-hand side of one line.
+  ## Every `result` in it read through `togetherResult[]` instead,
+  ## because a job cannot carry `result` itself to another thread:
+  ##
+  ##   result.b = g(result.a)   ->   togetherOut1[] = g(togetherResult[].a)
+  ##
+  ## Only a bare `result` is swapped; the field in `x.result` is not.
+  if n.kind == nnkIdent and n.eqIdent("result"):
+    result = newNimNode(nnkBracketExpr).add(ident("togetherResult"))
+    return
+  result = copyNimNode(n)
+  if n.kind == nnkDotExpr:
+    result.add(swapResult(n[0]), copyNimTree(n[1]))
+    return
+  for c in n:
+    result.add(swapResult(c))
+
+proc hasResult(n: NimNode): bool {.compileTime, role: parser,
+    tag: "threads".} =
+  ## n: one line of the block. Whether a bare `result` appears in it.
+  result = n.kind == nnkIdent and n.eqIdent("result")
+  for c in n:
+    result = result or hasResult(c)
+
+proc readSide(s: NimNode): NimNode {.compileTime, role: parser,
+    tag: "threads".} =
+  ## s: one line. What it reads: the right side of `a = f(x)`, or all
+  ## of a plain call.
+  result = s
+  if s.kind == nnkAsgn:
+    result = s[1]
+
 proc togetherLine(s: NimNode, i: int): NimNode {.compileTime, role: parser,
     tag: "threads".} =
   ## s: one line of the block   i: its place.
   ## Turns `a = f(x)` into a job writing through a pointer to `a`,
   ## because the job runs on another thread and `result` cannot be
-  ## carried there directly:
+  ## carried there directly (see `swapResult` for the right side):
   ##
   ##   let togetherOut3 = addr(a)
   ##   togetherJobs.add(TogetherJob(name: "a = f(x)",
@@ -283,9 +317,12 @@ proc togetherLine(s: NimNode, i: int): NimNode {.compileTime, role: parser,
   result = newStmtList()
   if s.kind == nnkAsgn:
     result.add(newLetStmt(outName, newCall(ident("addr"), s[0])))
-    work = newAssignment(newNimNode(nnkBracketExpr).add(outName), s[1])
+    work = newAssignment(newNimNode(nnkBracketExpr).add(outName),
+      swapResult(s[1]))
   elif s.kind notin {nnkCall, nnkCommand, nnkDiscardStmt}:
     error("together: each line must be `a = f(...)` or a call", s)
+  else:
+    work = swapResult(s)
   result.add(quote do:
     `jobs`.add(TogetherJob(name: `name`, run: proc() {.closure.} = `work`)))
 
@@ -305,6 +342,12 @@ macro together*(body: untyped): untyped {.role: orchestrator,
     jobs: NimNode = ident("togetherJobs")
     lines: NimNode = newStmtList()
     i: int = 0
+    needResult: bool = false
+  for s in body:
+    needResult = needResult or hasResult(readSide(s))
+  if needResult:
+    lines.add(newVarStmt(ident("togetherResult"),
+      newCall(ident("addr"), ident("result"))))
   for s in body:
     lines.add(togetherLine(s, i))
     i = i + 1

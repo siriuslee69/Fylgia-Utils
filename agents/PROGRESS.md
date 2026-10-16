@@ -1,6 +1,6 @@
 # Progress
 
-Commit Message: auto_thread: parallelMap, parallelRange and `together` sharing one thread budget
+Commit Message: together: a line may read `result`, and the block works outside a routine
 
 Features (Planned):
 - More reusable validation presets for additional app types.
